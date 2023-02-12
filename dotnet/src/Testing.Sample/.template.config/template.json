@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Datagrove",
+  "classifications": [
+    "Testing"
+  ],
+  "name": "Datagrove Testing Sample",
+  "identity": "Datagrove.Testing.Sample",
+  "groupIdentity": "Datagrove.Testing",
+  "shortName": "pepin",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "Datagrove.Testing.Sample",
+  "preferNameDirectory": true
+}

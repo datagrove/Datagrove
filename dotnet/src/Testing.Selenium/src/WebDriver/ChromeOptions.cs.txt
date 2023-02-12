@@ -1,0 +1,1440 @@
+// <copyright file="ChromeOptions.cs" company="WebDriver Committers">
+// Licensed to the Software Freedom Conservancy (SFC) under one
+// or more contributor license agreements. See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership. The SFC licenses this file
+// to you under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// </copyright>
+
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using System.IO;
+
+namespace Datagrove.Testing.Selenium
+{
+   /// <summary>
+    /// Provides types of capabilities for the DesiredCapabilities object.
+    /// </summary>
+    public static class CapabilityType
+    {
+        /// <summary>
+        /// Capability name used for the browser name.
+        /// </summary>
+        public static readonly string BrowserName = "browserName";
+
+        /// <summary>
+        /// Capability name used for the browser version.
+        /// </summary>
+        public static readonly string BrowserVersion = "browserVersion";
+
+        /// <summary>
+        /// Capability name used for the platform name.
+        /// </summary>
+        public static readonly string PlatformName = "platformName";
+
+        /// <summary>
+        /// Capability name used for the browser platform.
+        /// </summary>
+        public static readonly string Platform = "platform";
+
+        /// <summary>
+        /// Capability name used for the browser version.
+        /// </summary>
+        public static readonly string Version = "version";
+
+        /// <summary>
+        /// Capability name used to indicate whether JavaScript is enabled for the browser.
+        /// </summary>
+        public static readonly string IsJavaScriptEnabled = "javascriptEnabled";
+
+        /// <summary>
+        /// Capability name used to indicate whether the browser can take screenshots.
+        /// </summary>
+        public static readonly string TakesScreenshot = "takesScreenshot";
+
+        /// <summary>
+        /// Capability name used to indicate whether the browser can handle alerts.
+        /// </summary>
+        public static readonly string HandlesAlerts = "handlesAlerts";
+
+        /// <summary>
+        /// Capability name used to indicate whether the browser can find elements via CSS selectors.
+        /// </summary>
+        public static readonly string SupportsFindingByCss = "cssSelectorsEnabled";
+
+        /// <summary>
+        /// Capability name used for the browser proxy.
+        /// </summary>
+        public static readonly string Proxy = "proxy";
+
+        /// <summary>
+        /// Capability name used to indicate whether the browser supports rotation.
+        /// </summary>
+        public static readonly string Rotatable = "rotatable";
+
+        /// <summary>
+        /// Capability name used to indicate whether the browser accepts SSL certificates.
+        /// </summary>
+        public static readonly string AcceptSslCertificates = "acceptSslCerts";
+
+        /// <summary>
+        /// Capability name used to indicate whether the browser accepts SSL certificates on W3C Endpoints
+        /// </summary>
+        public static readonly string AcceptInsecureCertificates = "acceptInsecureCerts";
+
+        /// <summary>
+        /// Capability name used to indicate whether the browser uses native events.
+        /// </summary>
+        public static readonly string HasNativeEvents = "nativeEvents";
+
+        /// <summary>
+        /// Capability name used to indicate how the browser handles unexpected alerts.
+        /// </summary>
+        public static readonly string UnexpectedAlertBehavior = "unexpectedAlertBehaviour";
+
+        /// <summary>
+        /// Capability name used to indicate how the browser handles unhandled user prompts.
+        /// </summary>
+        public static readonly string UnhandledPromptBehavior = "unhandledPromptBehavior";
+
+        /// <summary>
+        /// Capability name used to indicate the page load strategy for the browser.
+        /// </summary>
+        public static readonly string PageLoadStrategy = "pageLoadStrategy";
+
+        /// <summary>
+        /// Capability name used to indicate the logging preferences for the session.
+        /// </summary>
+        public static readonly string LoggingPreferences = "loggingPrefs";
+
+        /// <summary>
+        /// Capability name used to disable the check for overlapping elements.
+        /// </summary>
+        public static readonly string DisableOverlappedElementCheck = "overlappingCheckDisabled";
+
+        /// <summary>
+        /// Capability name used to enable the profiling log for the session.
+        /// </summary>
+        public static readonly string EnableProfiling = "webdriver.logging.profiler.enabled";
+
+        /// <summary>
+        /// Capability name used to indicate whether the driver supports geolocation context.
+        /// </summary>
+        public static readonly string SupportsLocationContext = "locationContextEnabled";
+
+        /// <summary>
+        /// Capability name used to indicate whether the driver supports application cache.
+        /// </summary>
+        public static readonly string SupportsApplicationCache = "applicationCacheEnabled";
+
+        /// <summary>
+        /// Capability name used to indicate whether the driver supports web storage.
+        /// </summary>
+        public static readonly string SupportsWebStorage = "webStorageEnabled";
+
+        /// <summary>
+        /// Capability name used to indicate whether the driver supports setting the browser window's size and position.
+        /// </summary>
+        public static readonly string SetWindowRect = "setWindowRect";
+        
+        /// <summary>
+        /// Capability name used to get or set timeout values when creating a session.
+        /// </summary>
+        public static readonly string Timeouts = "timeouts";
+
+        /// <summary>
+        /// Capability name used to get or set whether &lt;input type='file'/&gt; elements must be visible to upload files.
+        /// </summary>
+        public static readonly string UseStrictFileInteractability = "strictFileInteractability";
+
+        /// <summary>
+        /// Capability name used to get a value indicating whether to request URL of a WebSocket
+        /// connection for bidirectional communication with a driver.
+        /// </summary>
+        public static readonly string WebSocketUrl = "webSocketUrl";
+
+        private static readonly List<string> KnownSpecCompliantCapabilityNames = new List<string>() {
+            BrowserName,
+            BrowserVersion,
+            PlatformName,
+            AcceptInsecureCertificates,
+            PageLoadStrategy,
+            Proxy,
+            SetWindowRect,
+            Timeouts,
+            UnhandledPromptBehavior,
+            UseStrictFileInteractability,
+            WebSocketUrl
+        };
+
+        /// <summary>
+        /// Gets a value indicating whether a given capability name is compliant with the
+        /// W3C WebDriver Specification.
+        /// </summary>
+        /// <param name="capabilityName">The name of the capability to check for compliance.</param>
+        /// <returns><see langword="true"/> if the capability name is valid according to the rules
+        /// of the specification; otherwise, <see langword="false"/>.</returns>
+        public static bool IsSpecCompliantCapabilityName(string capabilityName)
+        {
+            if (KnownSpecCompliantCapabilityNames.Contains(capabilityName) || capabilityName.Contains(":"))
+            {
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Specifies the behavior of handling unexpected alerts in the IE driver.
+    /// </summary>
+    public enum UnhandledPromptBehavior
+    {
+        /// <summary>
+        /// Indicates the behavior is not set.
+        /// </summary>
+        Default,
+
+        /// <summary>
+        /// Ignore unexpected alerts, such that the user must handle them.
+        /// </summary>
+        Ignore,
+
+        /// <summary>
+        /// Accept unexpected alerts.
+        /// </summary>
+        Accept,
+
+        /// <summary>
+        /// Dismiss unexpected alerts.
+        /// </summary>
+        Dismiss,
+
+        /// <summary>
+        /// Accepts unexpected alerts and notifies the user that the alert has
+        /// been accepted by throwing an <see cref="UnhandledAlertException"/>
+        /// </summary>
+        AcceptAndNotify,
+
+        /// <summary>
+        /// Dismisses unexpected alerts and notifies the user that the alert has
+        /// been dismissed by throwing an <see cref="UnhandledAlertException"/>
+        /// </summary>
+        DismissAndNotify
+    }
+
+    /// <summary>
+    /// Specifies the behavior of waiting for page loads in the driver.
+    /// </summary>
+    public enum PageLoadStrategy
+    {
+        /// <summary>
+        /// Indicates the behavior is not set.
+        /// </summary>
+        Default,
+
+        /// <summary>
+        /// Waits for pages to load and ready state to be 'complete'.
+        /// </summary>
+        Normal,
+
+        /// <summary>
+        /// Waits for pages to load and for ready state to be 'interactive' or 'complete'.
+        /// </summary>
+        Eager,
+
+        /// <summary>
+        /// Does not wait for pages to load, returning immediately.
+        /// </summary>
+        None
+    }
+
+    /// <summary>
+    /// Base class for managing options specific to a browser driver.
+    /// </summary>
+    public abstract class DriverOptions
+    {
+        private string browserName;
+        private string browserVersion;
+        private string platformName;
+        private Proxy proxy;
+        private bool? acceptInsecureCertificates;
+        private bool? useWebSocketUrl;
+        private bool useStrictFileInteractability;
+        private UnhandledPromptBehavior unhandledPromptBehavior = UnhandledPromptBehavior.Default;
+        private PageLoadStrategy pageLoadStrategy = PageLoadStrategy.Default;
+        private Dictionary<string, object> additionalCapabilities = new Dictionary<string, object>();
+        private Dictionary<string, LogLevel> loggingPreferences = new Dictionary<string, LogLevel>();
+        private Dictionary<string, string> knownCapabilityNames = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DriverOptions"/> class.
+        /// </summary>
+        protected DriverOptions()
+        {
+            this.AddKnownCapabilityName(CapabilityType.BrowserName, "BrowserName property");
+            this.AddKnownCapabilityName(CapabilityType.BrowserVersion, "BrowserVersion property");
+            this.AddKnownCapabilityName(CapabilityType.PlatformName, "PlatformName property");
+            this.AddKnownCapabilityName(CapabilityType.Proxy, "Proxy property");
+            this.AddKnownCapabilityName(CapabilityType.UnhandledPromptBehavior, "UnhandledPromptBehavior property");
+            this.AddKnownCapabilityName(CapabilityType.PageLoadStrategy, "PageLoadStrategy property");
+            this.AddKnownCapabilityName(CapabilityType.UseStrictFileInteractability, "UseStrictFileInteractability property");
+            this.AddKnownCapabilityName(CapabilityType.WebSocketUrl, "UseWebSocketUrl property");
+        }
+
+        /// <summary>
+        /// Gets or sets the name of the browser.
+        /// </summary>
+        public string BrowserName
+        {
+            get { return this.browserName; }
+            protected set { this.browserName = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the version of the browser.
+        /// </summary>
+        public string BrowserVersion
+        {
+            get { return this.browserVersion; }
+            set { this.browserVersion = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the name of the platform on which the browser is running.
+        /// </summary>
+        public string PlatformName
+        {
+            get { return this.platformName; }
+            set { this.platformName = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the browser should accept self-signed
+        /// SSL certificates.
+        /// </summary>
+        public bool? AcceptInsecureCertificates
+        {
+            get { return this.acceptInsecureCertificates; }
+            set { this.acceptInsecureCertificates = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the driver should request a URL to
+        /// a WebSocket to be used for bidirectional communication.
+        /// </summary>
+        public bool? UseWebSocketUrl
+        {
+            get { return this.useWebSocketUrl; }
+            set { this.useWebSocketUrl = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the value for describing how unexpected alerts are to be handled in the browser.
+        /// Defaults to <see cref="UnhandledPromptBehavior.Default"/>.
+        /// </summary>
+        public UnhandledPromptBehavior UnhandledPromptBehavior
+        {
+            get { return this.unhandledPromptBehavior; }
+            set { this.unhandledPromptBehavior = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the value for describing how the browser is to wait for pages to load in the browser.
+        /// Defaults to <see cref="PageLoadStrategy.Default"/>.
+        /// </summary>
+        public PageLoadStrategy PageLoadStrategy
+        {
+            get { return this.pageLoadStrategy; }
+            set { this.pageLoadStrategy = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the <see cref="Proxy"/> to be used with this browser.
+        /// </summary>
+        public Proxy Proxy
+        {
+            get { return this.proxy; }
+            set { this.proxy = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether &lt;input type='file'/&gt; elements
+        /// must be visible to allow uploading of files.
+        /// </summary>
+        public bool UseStrictFileInteractability
+        {
+            get { return this.useStrictFileInteractability; }
+            set { this.useStrictFileInteractability = value; }
+        }
+
+        /// <summary>
+        /// Provides a means to add additional capabilities not yet added as type safe options
+        /// for the specific browser driver.
+        /// </summary>
+        /// <param name="optionName">The name of the capability to add.</param>
+        /// <param name="optionValue">The value of the capability to add.</param>
+        /// <exception cref="ArgumentException">
+        /// thrown when attempting to add a capability for which there is already a type safe option, or
+        /// when <paramref name="optionName"/> is <see langword="null"/> or the empty string.
+        /// </exception>
+        /// <remarks>Calling <see cref="AddAdditionalOption(string, object)"/>
+        /// where <paramref name="optionName"/> has already been added will overwrite the
+        /// existing value with the new value in <paramref name="optionValue"/>.
+        /// </remarks>
+        public virtual void AddAdditionalOption(string optionName, object optionValue)
+        {
+            this.ValidateCapabilityName(optionName);
+            this.additionalCapabilities[optionName] = optionValue;
+        }
+
+        /// <summary>
+        /// Returns the <see cref="ICapabilities"/> for the specific browser driver with these
+        /// options included as capabilities. This does not copy the options. Further
+        /// changes will be reflected in the returned capabilities.
+        /// </summary>
+        /// <returns>The <see cref="ICapabilities"/> for browser driver with these options.</returns>
+        public abstract ICapabilities ToCapabilities();
+
+        /// <summary>
+        /// Compares this <see cref="DriverOptions"/> object with another to see if there
+        /// are merge conflicts between them.
+        /// </summary>
+        /// <param name="other">The <see cref="DriverOptions"/> object to compare with.</param>
+        /// <returns>A <see cref="DriverOptionsMergeResult"/> object containing the status of the attempted merge.</returns>
+        public virtual DriverOptionsMergeResult GetMergeResult(DriverOptions other)
+        {
+            DriverOptionsMergeResult result = new DriverOptionsMergeResult();
+            if (this.browserName != null && other.BrowserName != null)
+            {
+                result.IsMergeConflict = true;
+                result.MergeConflictOptionName = "BrowserName";
+                return result;
+            }
+
+            if (this.browserVersion != null && other.BrowserVersion != null)
+            {
+                result.IsMergeConflict = true;
+                result.MergeConflictOptionName = "BrowserVersion";
+                return result;
+            }
+
+            if (this.platformName != null && other.PlatformName != null)
+            {
+                result.IsMergeConflict = true;
+                result.MergeConflictOptionName = "PlatformName";
+                return result;
+            }
+
+            if (this.proxy != null && other.Proxy != null)
+            {
+                result.IsMergeConflict = true;
+                result.MergeConflictOptionName = "Proxy";
+                return result;
+            }
+
+            if (this.unhandledPromptBehavior != UnhandledPromptBehavior.Default && other.UnhandledPromptBehavior != UnhandledPromptBehavior.Default)
+            {
+                result.IsMergeConflict = true;
+                result.MergeConflictOptionName = "UnhandledPromptBehavior";
+                return result;
+            }
+
+            if (this.pageLoadStrategy != PageLoadStrategy.Default && other.PageLoadStrategy != PageLoadStrategy.Default)
+            {
+                result.IsMergeConflict = true;
+                result.MergeConflictOptionName = "PageLoadStrategy";
+                return result;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Sets the logging preferences for this driver.
+        /// </summary>
+        /// <param name="logType">The type of log for which to set the preference.
+        /// Known log types can be found in the <see cref="LogType"/> class.</param>
+        /// <param name="logLevel">The <see cref="LogLevel"/> value to which to set the log level.</param>
+        public void SetLoggingPreference(string logType, LogLevel logLevel)
+        {
+            this.loggingPreferences[logType] = logLevel;
+        }
+
+        /// <summary>
+        /// Returns a string representation of this <see cref="DriverOptions"/>.
+        /// </summary>
+        /// <returns>A string representation of this <see cref="DriverOptions"/>.</returns>
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this.ToDictionary(), Formatting.Indented);
+        }
+
+        /// <summary>
+        /// Returns the current options as a <see cref="Dictionary{TKey, TValue}"/>.
+        /// </summary>
+        /// <returns>The current options as a <see cref="Dictionary{TKey, TValue}"/>.</returns>
+        internal IDictionary<string, object> ToDictionary()
+        {
+            IHasCapabilitiesDictionary desired = this.ToCapabilities() as IHasCapabilitiesDictionary;
+            if (desired == null)
+            {
+                return null;
+            }
+
+            return desired.CapabilitiesDictionary;
+        }
+
+        /// <summary>
+        /// Validates the name of the capability to verify it is not a capability
+        /// for which a type-safe property or method already exists.
+        /// </summary>
+        /// <param name="capabilityName">The name of the capability to validate.</param>
+        /// <exception cref="ArgumentException">
+        /// thrown when attempting to add a capability for which there is already a type safe option, or
+        /// when <paramref name="capabilityName"/> is <see langword="null"/> or the empty string.
+        /// </exception>
+        protected void ValidateCapabilityName(string capabilityName)
+        {
+            if (string.IsNullOrEmpty(capabilityName))
+            {
+                throw new ArgumentException("Capability name may not be null an empty string.", nameof(capabilityName));
+            }
+
+            if (this.IsKnownCapabilityName(capabilityName))
+            {
+                string typeSafeOptionName = this.GetTypeSafeOptionName(capabilityName);
+                string message = string.Format(CultureInfo.InvariantCulture, "There is already an option for the {0} capability. Please use the {1} instead.", capabilityName, typeSafeOptionName);
+                throw new ArgumentException(message, nameof(capabilityName));
+            }
+        }
+
+        /// <summary>
+        /// Adds a known capability to the list of known capabilities and associates it
+        /// with the type-safe property name of the options class to be used instead.
+        /// </summary>
+        /// <param name="capabilityName">The name of the capability.</param>
+        /// <param name="typeSafeOptionName">The name of the option property or method to be used instead.</param>
+        protected void AddKnownCapabilityName(string capabilityName, string typeSafeOptionName)
+        {
+            this.knownCapabilityNames[capabilityName] = typeSafeOptionName;
+        }
+
+        /// <summary>
+        /// Remove a capability from the list of known capabilities
+        /// </summary>
+        /// <param name="capabilityName">The name of the capability to be removed.</param>
+        protected void RemoveKnownCapabilityName(string capabilityName)
+        {
+            if (!string.IsNullOrEmpty(capabilityName) && this.knownCapabilityNames.ContainsKey(capabilityName))
+            {
+                this.knownCapabilityNames.Remove(capabilityName);
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether the specified capability name is a known capability name which has a type-safe option.
+        /// </summary>
+        /// <param name="capabilityName">The name of the capability to check.</param>
+        /// <returns><see langword="true"/> if the capability name is known; otherwise <see langword="false"/>.</returns>
+        protected bool IsKnownCapabilityName(string capabilityName)
+        {
+            return this.knownCapabilityNames.ContainsKey(capabilityName);
+        }
+
+        /// <summary>
+        /// Gets the name of the type-safe option for a given capability name.
+        /// </summary>
+        /// <param name="capabilityName">The name of the capability to check.</param>
+        /// <returns>The name of the type-safe option for the given capability name.</returns>
+        protected string GetTypeSafeOptionName(string capabilityName)
+        {
+            if (!this.IsKnownCapabilityName(capabilityName))
+            {
+                return string.Empty;
+            }
+
+            return this.knownCapabilityNames[capabilityName];
+        }
+
+        /// <summary>
+        /// Generates the logging preferences dictionary for transmission as a desired capability.
+        /// </summary>
+        /// <returns>The dictionary containing the logging preferences.</returns>
+        protected Dictionary<string, object> GenerateLoggingPreferencesDictionary()
+        {
+            if (this.loggingPreferences.Count == 0)
+            {
+                return null;
+            }
+
+            Dictionary<string, object> loggingPreferenceCapability = new Dictionary<string, object>();
+            foreach (string logType in this.loggingPreferences.Keys)
+            {
+                loggingPreferenceCapability[logType] = this.loggingPreferences[logType].ToString().ToUpperInvariant();
+            }
+
+            return loggingPreferenceCapability;
+        }
+
+        /// <summary>
+        /// Generates the current options as a capabilities object for further processing.
+        /// </summary>
+        /// <param name="isSpecificationCompliant">A value indicating whether to generate capabilities compliant with the W3C WebDriver Specification.</param>
+        /// <returns>A <see cref="IWritableCapabilities"/> object representing the current options for further processing.</returns>
+        protected IWritableCapabilities GenerateDesiredCapabilities(bool isSpecificationCompliant)
+        {
+            DesiredCapabilities capabilities = new DesiredCapabilities();
+            if (!string.IsNullOrEmpty(this.browserName))
+            {
+                capabilities.SetCapability(CapabilityType.BrowserName, this.browserName);
+            }
+
+            if (!string.IsNullOrEmpty(this.browserVersion))
+            {
+                capabilities.SetCapability(CapabilityType.BrowserVersion, this.browserVersion);
+            }
+
+            if (!string.IsNullOrEmpty(this.platformName))
+            {
+                capabilities.SetCapability(CapabilityType.PlatformName, this.platformName);
+            }
+
+            if (this.acceptInsecureCertificates.HasValue)
+            {
+                capabilities.SetCapability(CapabilityType.AcceptInsecureCertificates, this.acceptInsecureCertificates);
+            }
+
+            if (this.useWebSocketUrl.HasValue)
+            {
+                capabilities.SetCapability(CapabilityType.WebSocketUrl, this.useWebSocketUrl);
+            }
+
+            if (this.useStrictFileInteractability)
+            {
+                capabilities.SetCapability(CapabilityType.UseStrictFileInteractability, true);
+            }
+
+            if (this.pageLoadStrategy != PageLoadStrategy.Default)
+            {
+                string pageLoadStrategySetting = "normal";
+                switch (this.pageLoadStrategy)
+                {
+                    case PageLoadStrategy.Eager:
+                        pageLoadStrategySetting = "eager";
+                        break;
+
+                    case PageLoadStrategy.None:
+                        pageLoadStrategySetting = "none";
+                        break;
+                }
+
+                capabilities.SetCapability(CapabilityType.PageLoadStrategy, pageLoadStrategySetting);
+            }
+
+            if (this.UnhandledPromptBehavior != UnhandledPromptBehavior.Default)
+            {
+                string unhandledPropmtBehaviorSetting = "ignore";
+                switch (this.UnhandledPromptBehavior)
+                {
+                    case UnhandledPromptBehavior.Accept:
+                        unhandledPropmtBehaviorSetting = "accept";
+                        break;
+
+                    case UnhandledPromptBehavior.Dismiss:
+                        unhandledPropmtBehaviorSetting = "dismiss";
+                        break;
+
+                    case UnhandledPromptBehavior.AcceptAndNotify:
+                        unhandledPropmtBehaviorSetting = "accept and notify";
+                        break;
+
+                    case UnhandledPromptBehavior.DismissAndNotify:
+                        unhandledPropmtBehaviorSetting = "dismiss and notify";
+                        break;
+                }
+
+                capabilities.SetCapability(CapabilityType.UnhandledPromptBehavior, unhandledPropmtBehaviorSetting);
+            }
+
+            if (this.Proxy != null)
+            {
+                Dictionary<string, object> proxyCapability = this.Proxy.ToCapability();
+                if (!isSpecificationCompliant)
+                {
+                    proxyCapability = this.Proxy.ToLegacyCapability();
+                }
+
+                if (proxyCapability != null)
+                {
+                    capabilities.SetCapability(CapabilityType.Proxy, proxyCapability);
+                }
+            }
+
+            foreach (KeyValuePair<string, object> pair in this.additionalCapabilities)
+            {
+                capabilities.SetCapability(pair.Key, pair.Value);
+            }
+
+            return capabilities;
+        }
+    }
+
+    public abstract class ChromiumOptions : DriverOptions
+    {
+        private const string ArgumentsChromeOption = "args";
+        private const string BinaryChromeOption = "binary";
+        private const string ExtensionsChromeOption = "extensions";
+        private const string LocalStateChromeOption = "localState";
+        private const string PreferencesChromeOption = "prefs";
+        private const string DetachChromeOption = "detach";
+        private const string DebuggerAddressChromeOption = "debuggerAddress";
+        private const string ExcludeSwitchesChromeOption = "excludeSwitches";
+        private const string MinidumpPathChromeOption = "minidumpPath";
+        private const string MobileEmulationChromeOption = "mobileEmulation";
+        private const string PerformanceLoggingPreferencesChromeOption = "perfLoggingPrefs";
+        private const string WindowTypesChromeOption = "windowTypes";
+        private const string UseSpecCompliantProtocolOption = "w3c";
+
+        private bool leaveBrowserRunning;
+        private bool useSpecCompliantProtocol = true;
+        private string binaryLocation;
+        private string debuggerAddress;
+        private string minidumpPath;
+        private List<string> arguments = new List<string>();
+        private List<string> extensionFiles = new List<string>();
+        private List<string> encodedExtensions = new List<string>();
+        private List<string> excludedSwitches = new List<string>();
+        private List<string> windowTypes = new List<string>();
+        private Dictionary<string, object> additionalChromeOptions = new Dictionary<string, object>();
+        private Dictionary<string, object> userProfilePreferences;
+        private Dictionary<string, object> localStatePreferences;
+
+        private string mobileEmulationDeviceName;
+        private ChromiumMobileEmulationDeviceSettings mobileEmulationDeviceSettings;
+        private ChromiumPerformanceLoggingPreferences perfLoggingPreferences;
+        private ChromiumAndroidOptions androidOptions;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ChromiumOptions"/> class.
+        /// </summary>
+        public ChromiumOptions() : base()
+        {
+            this.AddKnownCapabilityName(this.CapabilityName, "current ChromiumOptions class instance");
+            this.AddKnownCapabilityName(CapabilityType.LoggingPreferences, "SetLoggingPreference method");
+            this.AddKnownCapabilityName(this.LoggingPreferencesChromeOption, "SetLoggingPreference method");
+            this.AddKnownCapabilityName(ChromiumOptions.ArgumentsChromeOption, "AddArguments method");
+            this.AddKnownCapabilityName(ChromiumOptions.BinaryChromeOption, "BinaryLocation property");
+            this.AddKnownCapabilityName(ChromiumOptions.ExtensionsChromeOption, "AddExtensions method");
+            this.AddKnownCapabilityName(ChromiumOptions.LocalStateChromeOption, "AddLocalStatePreference method");
+            this.AddKnownCapabilityName(ChromiumOptions.PreferencesChromeOption, "AddUserProfilePreference method");
+            this.AddKnownCapabilityName(ChromiumOptions.DetachChromeOption, "LeaveBrowserRunning property");
+            this.AddKnownCapabilityName(ChromiumOptions.DebuggerAddressChromeOption, "DebuggerAddress property");
+            this.AddKnownCapabilityName(ChromiumOptions.ExcludeSwitchesChromeOption, "AddExcludedArgument property");
+            this.AddKnownCapabilityName(ChromiumOptions.MinidumpPathChromeOption, "MinidumpPath property");
+            this.AddKnownCapabilityName(ChromiumOptions.MobileEmulationChromeOption, "EnableMobileEmulation method");
+            this.AddKnownCapabilityName(ChromiumOptions.PerformanceLoggingPreferencesChromeOption, "PerformanceLoggingPreferences property");
+            this.AddKnownCapabilityName(ChromiumOptions.WindowTypesChromeOption, "AddWindowTypes method");
+            this.AddKnownCapabilityName(ChromiumOptions.UseSpecCompliantProtocolOption, "UseSpecCompliantProtocol property");
+        }
+
+        /// <summary>
+        /// Gets the vendor prefix to apply to Chromium-specific capability names.
+        /// </summary>
+        protected abstract string VendorPrefix { get; }
+
+        private string LoggingPreferencesChromeOption
+        {
+            get { return this.VendorPrefix + ":loggingPrefs"; }
+        }
+
+        /// <summary>
+        /// Gets the name of the capability used to store Chromium options in
+        /// an <see cref="ICapabilities"/> object.
+        /// </summary>
+        public abstract string CapabilityName { get; }
+
+        /// <summary>
+        /// Gets or sets the location of the Chromium browser's binary executable file.
+        /// </summary>
+        public string BinaryLocation
+        {
+            get { return this.binaryLocation; }
+            set { this.binaryLocation = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether Chromium should be left running after the
+        /// ChromeDriver instance is exited. Defaults to <see langword="false"/>.
+        /// </summary>
+        public bool LeaveBrowserRunning
+        {
+            get { return this.leaveBrowserRunning; }
+            set { this.leaveBrowserRunning = value; }
+        }
+
+        /// <summary>
+        /// Gets the list of arguments appended to the Chromium command line as a string array.
+        /// </summary>
+        public ReadOnlyCollection<string> Arguments
+        {
+            get { return this.arguments.AsReadOnly(); }
+        }
+
+        /// <summary>
+        /// Gets the list of extensions to be installed as an array of base64-encoded strings.
+        /// </summary>
+        public ReadOnlyCollection<string> Extensions
+        {
+            get
+            {
+                List<string> allExtensions = new List<string>(this.encodedExtensions);
+                foreach (string extensionFile in this.extensionFiles)
+                {
+                    byte[] extensionByteArray = File.ReadAllBytes(extensionFile);
+                    string encodedExtension = Convert.ToBase64String(extensionByteArray);
+                    allExtensions.Add(encodedExtension);
+                }
+
+                return allExtensions.AsReadOnly();
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the address of a Chromium debugger server to connect to.
+        /// Should be of the form "{hostname|IP address}:port".
+        /// </summary>
+        public string DebuggerAddress
+        {
+            get { return this.debuggerAddress; }
+            set { this.debuggerAddress = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the directory in which to store minidump files.
+        /// </summary>
+        public string MinidumpPath
+        {
+            get { return this.minidumpPath; }
+            set { this.minidumpPath = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the performance logging preferences for the driver.
+        /// </summary>
+        public ChromiumPerformanceLoggingPreferences PerformanceLoggingPreferences
+        {
+            get { return this.perfLoggingPreferences; }
+            set { this.perfLoggingPreferences = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the options for automating Chromium applications on Android.
+        /// </summary>
+        public ChromiumAndroidOptions AndroidOptions
+        {
+            get { return this.androidOptions; }
+            set { this.androidOptions = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the <see cref="ChromiumDriver"/> instance
+        /// should use the legacy OSS protocol dialect or a dialect compliant with the W3C
+        /// WebDriver Specification.
+        /// </summary>
+        [Obsolete("Spec Compliant Protocol is the only supported protocol")]
+        public bool UseSpecCompliantProtocol
+        {
+            get { return this.useSpecCompliantProtocol; }
+            set
+            {
+                if (!value)
+                {
+                    throw new ArgumentException("Only the spec compliant protocol is supported, " +
+                                                "Please update to W3C Syntax: " +
+                                                "https://www.selenium.dev/blog/2022/legacy-protocol-support/");
+                }
+                this.useSpecCompliantProtocol = true;
+            }
+        }
+
+        /// <summary>
+        /// Adds a single argument to the list of arguments to be appended to the browser executable command line.
+        /// </summary>
+        /// <param name="argument">The argument to add.</param>
+        public void AddArgument(string argument)
+        {
+            if (string.IsNullOrEmpty(argument))
+            {
+                throw new ArgumentException("argument must not be null or empty", nameof(argument));
+            }
+
+            this.AddArguments(argument);
+        }
+
+        /// <summary>
+        /// Adds arguments to be appended to the browser executable command line.
+        /// </summary>
+        /// <param name="argumentsToAdd">An array of arguments to add.</param>
+        public void AddArguments(params string[] argumentsToAdd)
+        {
+            this.AddArguments(new List<string>(argumentsToAdd));
+        }
+
+        /// <summary>
+        /// Adds arguments to be appended to the browser executable command line.
+        /// </summary>
+        /// <param name="argumentsToAdd">An <see cref="IEnumerable{T}"/> object of arguments to add.</param>
+        public void AddArguments(IEnumerable<string> argumentsToAdd)
+        {
+            if (argumentsToAdd == null)
+            {
+                throw new ArgumentNullException(nameof(argumentsToAdd), "argumentsToAdd must not be null");
+            }
+
+            this.arguments.AddRange(argumentsToAdd);
+        }
+
+        /// <summary>
+        /// Adds a single argument to be excluded from the list of arguments passed by default
+        /// to the browser executable command line by chromedriver.exe.
+        /// </summary>
+        /// <param name="argument">The argument to exclude.</param>
+        public void AddExcludedArgument(string argument)
+        {
+            if (string.IsNullOrEmpty(argument))
+            {
+                throw new ArgumentException("argument must not be null or empty", nameof(argument));
+            }
+
+            this.AddExcludedArguments(argument);
+        }
+
+        /// <summary>
+        /// Adds arguments to be excluded from the list of arguments passed by default
+        /// to the browser executable command line by chromedriver.exe.
+        /// </summary>
+        /// <param name="argumentsToExclude">An array of arguments to exclude.</param>
+        public void AddExcludedArguments(params string[] argumentsToExclude)
+        {
+            this.AddExcludedArguments(new List<string>(argumentsToExclude));
+        }
+
+        /// <summary>
+        /// Adds arguments to be excluded from the list of arguments passed by default
+        /// to the browser executable command line by chromedriver.exe.
+        /// </summary>
+        /// <param name="argumentsToExclude">An <see cref="IEnumerable{T}"/> object of arguments to exclude.</param>
+        public void AddExcludedArguments(IEnumerable<string> argumentsToExclude)
+        {
+            if (argumentsToExclude == null)
+            {
+                throw new ArgumentNullException(nameof(argumentsToExclude), "argumentsToExclude must not be null");
+            }
+
+            this.excludedSwitches.AddRange(argumentsToExclude);
+        }
+
+        /// <summary>
+        /// Adds a path to a packed Chrome extension (.crx file) to the list of extensions
+        /// to be installed in the instance of Chrome.
+        /// </summary>
+        /// <param name="pathToExtension">The full path to the extension to add.</param>
+        public void AddExtension(string pathToExtension)
+        {
+            if (string.IsNullOrEmpty(pathToExtension))
+            {
+                throw new ArgumentException("pathToExtension must not be null or empty", nameof(pathToExtension));
+            }
+
+            this.AddExtensions(pathToExtension);
+        }
+
+        /// <summary>
+        /// Adds a list of paths to packed Chrome extensions (.crx files) to be installed
+        /// in the instance of Chrome.
+        /// </summary>
+        /// <param name="extensions">An array of full paths to the extensions to add.</param>
+        public void AddExtensions(params string[] extensions)
+        {
+            this.AddExtensions(new List<string>(extensions));
+        }
+
+        /// <summary>
+        /// Adds a list of paths to packed Chrome extensions (.crx files) to be installed
+        /// in the instance of Chrome.
+        /// </summary>
+        /// <param name="extensions">An <see cref="IEnumerable{T}"/> of full paths to the extensions to add.</param>
+        public void AddExtensions(IEnumerable<string> extensions)
+        {
+            if (extensions == null)
+            {
+                throw new ArgumentNullException(nameof(extensions), "extensions must not be null");
+            }
+
+            foreach (string extension in extensions)
+            {
+                if (!File.Exists(extension))
+                {
+                    throw new FileNotFoundException("No extension found at the specified path", extension);
+                }
+
+                this.extensionFiles.Add(extension);
+            }
+        }
+
+        /// <summary>
+        /// Adds a base64-encoded string representing a Chrome extension to the list of extensions
+        /// to be installed in the instance of Chrome.
+        /// </summary>
+        /// <param name="extension">A base64-encoded string representing the extension to add.</param>
+        public void AddEncodedExtension(string extension)
+        {
+            if (string.IsNullOrEmpty(extension))
+            {
+                throw new ArgumentException("extension must not be null or empty", nameof(extension));
+            }
+
+            this.AddEncodedExtensions(extension);
+        }
+
+        /// <summary>
+        /// Adds a list of base64-encoded strings representing Chrome extensions to the list of extensions
+        /// to be installed in the instance of Chrome.
+        /// </summary>
+        /// <param name="extensions">An array of base64-encoded strings representing the extensions to add.</param>
+        public void AddEncodedExtensions(params string[] extensions)
+        {
+            this.AddEncodedExtensions(new List<string>(extensions));
+        }
+
+        /// <summary>
+        /// Adds a list of base64-encoded strings representing Chrome extensions to be installed
+        /// in the instance of Chrome.
+        /// </summary>
+        /// <param name="extensions">An <see cref="IEnumerable{T}"/> of base64-encoded strings
+        /// representing the extensions to add.</param>
+        public void AddEncodedExtensions(IEnumerable<string> extensions)
+        {
+            if (extensions == null)
+            {
+                throw new ArgumentNullException(nameof(extensions), "extensions must not be null");
+            }
+
+            foreach (string extension in extensions)
+            {
+                // Run the extension through the base64 converter to test that the
+                // string is not malformed.
+                try
+                {
+                    Convert.FromBase64String(extension);
+                }
+                catch (FormatException ex)
+                {
+                    throw new WebDriverException("Could not properly decode the base64 string", ex);
+                }
+
+                this.encodedExtensions.Add(extension);
+            }
+        }
+
+        /// <summary>
+        /// Adds a preference for the user-specific profile or "user data directory."
+        /// If the specified preference already exists, it will be overwritten.
+        /// </summary>
+        /// <param name="preferenceName">The name of the preference to set.</param>
+        /// <param name="preferenceValue">The value of the preference to set.</param>
+        public void AddUserProfilePreference(string preferenceName, object preferenceValue)
+        {
+            if (this.userProfilePreferences == null)
+            {
+                this.userProfilePreferences = new Dictionary<string, object>();
+            }
+
+            this.userProfilePreferences[preferenceName] = preferenceValue;
+        }
+
+        /// <summary>
+        /// Adds a preference for the local state file in the user's data directory for Chromium.
+        /// If the specified preference already exists, it will be overwritten.
+        /// </summary>
+        /// <param name="preferenceName">The name of the preference to set.</param>
+        /// <param name="preferenceValue">The value of the preference to set.</param>
+        public void AddLocalStatePreference(string preferenceName, object preferenceValue)
+        {
+            if (this.localStatePreferences == null)
+            {
+                this.localStatePreferences = new Dictionary<string, object>();
+            }
+
+            this.localStatePreferences[preferenceName] = preferenceValue;
+        }
+
+        /// <summary>
+        /// Allows the Chromium browser to emulate a mobile device.
+        /// </summary>
+        /// <param name="deviceName">The name of the device to emulate. The device name must be a
+        /// valid device name from the Chrome DevTools Emulation panel.</param>
+        /// <remarks>Specifying an invalid device name will not throw an exeption, but
+        /// will generate an error in Chrome when the driver starts. To unset mobile
+        /// emulation, call this method with <see langword="null"/> as the argument.</remarks>
+        public void EnableMobileEmulation(string deviceName)
+        {
+            this.mobileEmulationDeviceSettings = null;
+            this.mobileEmulationDeviceName = deviceName;
+        }
+
+        /// <summary>
+        /// Allows the Chromium browser to emulate a mobile device.
+        /// </summary>
+        /// <param name="deviceSettings">The <see cref="ChromiumMobileEmulationDeviceSettings"/>
+        /// object containing the settings of the device to emulate.</param>
+        /// <exception cref="ArgumentException">Thrown if the device settings option does
+        /// not have a user agent string set.</exception>
+        /// <remarks>Specifying an invalid device name will not throw an exeption, but
+        /// will generate an error in Chrome when the driver starts. To unset mobile
+        /// emulation, call this method with <see langword="null"/> as the argument.</remarks>
+        public void EnableMobileEmulation(ChromiumMobileEmulationDeviceSettings deviceSettings)
+        {
+            this.mobileEmulationDeviceName = null;
+            if (deviceSettings != null && string.IsNullOrEmpty(deviceSettings.UserAgent))
+            {
+                throw new ArgumentException("Device settings must include a user agent string.", nameof(deviceSettings));
+            }
+
+            this.mobileEmulationDeviceSettings = deviceSettings;
+        }
+
+        /// <summary>
+        /// Adds a type of window that will be listed in the list of window handles
+        /// returned by the Chrome driver.
+        /// </summary>
+        /// <param name="windowType">The name of the window type to add.</param>
+        /// <remarks>This method can be used to allow the driver to access {webview}
+        /// elements by adding "webview" as a window type.</remarks>
+        public void AddWindowType(string windowType)
+        {
+            if (string.IsNullOrEmpty(windowType))
+            {
+                throw new ArgumentException("windowType must not be null or empty", nameof(windowType));
+            }
+
+            this.AddWindowTypes(windowType);
+        }
+
+        /// <summary>
+        /// Adds a list of window types that will be listed in the list of window handles
+        /// returned by the Chromium driver.
+        /// </summary>
+        /// <param name="windowTypesToAdd">An array of window types to add.</param>
+        public void AddWindowTypes(params string[] windowTypesToAdd)
+        {
+            this.AddWindowTypes(new List<string>(windowTypesToAdd));
+        }
+
+        /// <summary>
+        /// Adds a list of window types that will be listed in the list of window handles
+        /// returned by the Chromium driver.
+        /// </summary>
+        /// <param name="windowTypesToAdd">An <see cref="IEnumerable{T}"/> of window types to add.</param>
+        public void AddWindowTypes(IEnumerable<string> windowTypesToAdd)
+        {
+            if (windowTypesToAdd == null)
+            {
+                throw new ArgumentNullException(nameof(windowTypesToAdd), "windowTypesToAdd must not be null");
+            }
+
+            this.windowTypes.AddRange(windowTypesToAdd);
+        }
+
+        /// <summary>
+        /// Provides a means to add additional capabilities not yet added as type safe options
+        /// for the Chromium driver.
+        /// </summary>
+        /// <param name="optionName">The name of the capability to add.</param>
+        /// <param name="optionValue">The value of the capability to add.</param>
+        /// <exception cref="ArgumentException">
+        /// thrown when attempting to add a capability for which there is already a type safe option, or
+        /// when <paramref name="optionName"/> is <see langword="null"/> or the empty string.
+        /// </exception>
+        /// <remarks>Calling <see cref="AddAdditionalChromiumOption(string, object)"/>
+        /// where <paramref name="optionName"/> has already been added will overwrite the
+        /// existing value with the new value in <paramref name="optionValue"/>.
+        /// Calling this method adds capabilities to the Chromium-specific options object passed to
+        /// webdriver executable (e.g. property name 'goog:chromeOptions').</remarks>
+        protected void AddAdditionalChromiumOption(string optionName, object optionValue)
+        {
+            this.ValidateCapabilityName(optionName);
+            this.additionalChromeOptions[optionName] = optionValue;
+        }
+
+        /// <summary>
+        /// Returns DesiredCapabilities for Chromium with these options included as
+        /// capabilities. This does not copy the options. Further changes will be
+        /// reflected in the returned capabilities.
+        /// </summary>
+        /// <returns>The DesiredCapabilities for Chrome with these options.</returns>
+        public override ICapabilities ToCapabilities()
+        {
+            Dictionary<string, object> chromeOptions = this.BuildChromeOptionsDictionary();
+
+            IWritableCapabilities capabilities = this.GenerateDesiredCapabilities(false);
+            capabilities.SetCapability(this.CapabilityName, chromeOptions);
+
+            AddVendorSpecificChromiumCapabilities(capabilities);
+
+            Dictionary<string, object> loggingPreferences = this.GenerateLoggingPreferencesDictionary();
+            if (loggingPreferences != null)
+            {
+                capabilities.SetCapability(LoggingPreferencesChromeOption, loggingPreferences);
+            }
+
+            return capabilities.AsReadOnly();
+        }
+
+        /// <summary>
+        /// Adds vendor-specific capabilities for Chromium-based browsers.
+        /// </summary>
+        /// <param name="capabilities">The capabilities to add.</param>
+        protected virtual void AddVendorSpecificChromiumCapabilities(IWritableCapabilities capabilities)
+        {
+        }
+
+        private Dictionary<string, object> BuildChromeOptionsDictionary()
+        {
+            Dictionary<string, object> chromeOptions = new Dictionary<string, object>();
+            if (this.Arguments.Count > 0)
+            {
+                chromeOptions[ArgumentsChromeOption] = this.Arguments;
+            }
+
+            if (!string.IsNullOrEmpty(this.binaryLocation))
+            {
+                chromeOptions[BinaryChromeOption] = this.binaryLocation;
+            }
+
+            ReadOnlyCollection<string> extensions = this.Extensions;
+            if (extensions.Count > 0)
+            {
+                chromeOptions[ExtensionsChromeOption] = extensions;
+            }
+
+            if (this.localStatePreferences != null && this.localStatePreferences.Count > 0)
+            {
+                chromeOptions[LocalStateChromeOption] = this.localStatePreferences;
+            }
+
+            if (this.userProfilePreferences != null && this.userProfilePreferences.Count > 0)
+            {
+                chromeOptions[PreferencesChromeOption] = this.userProfilePreferences;
+            }
+
+            if (this.leaveBrowserRunning)
+            {
+                chromeOptions[DetachChromeOption] = this.leaveBrowserRunning;
+            }
+
+            if (!this.useSpecCompliantProtocol)
+            {
+                chromeOptions[UseSpecCompliantProtocolOption] = this.useSpecCompliantProtocol;
+            }
+
+            if (!string.IsNullOrEmpty(this.debuggerAddress))
+            {
+                chromeOptions[DebuggerAddressChromeOption] = this.debuggerAddress;
+            }
+
+            if (this.excludedSwitches.Count > 0)
+            {
+                chromeOptions[ExcludeSwitchesChromeOption] = this.excludedSwitches;
+            }
+
+            if (!string.IsNullOrEmpty(this.minidumpPath))
+            {
+                chromeOptions[MinidumpPathChromeOption] = this.minidumpPath;
+            }
+
+            if (!string.IsNullOrEmpty(this.mobileEmulationDeviceName) || this.mobileEmulationDeviceSettings != null)
+            {
+                chromeOptions[MobileEmulationChromeOption] = this.GenerateMobileEmulationSettingsDictionary();
+            }
+
+            if (this.perfLoggingPreferences != null)
+            {
+                chromeOptions[PerformanceLoggingPreferencesChromeOption] = this.GeneratePerformanceLoggingPreferencesDictionary();
+            }
+
+            if (this.androidOptions != null)
+            {
+                this.AddAndroidOptions(chromeOptions);
+            }
+
+            if (this.windowTypes.Count > 0)
+            {
+                chromeOptions[WindowTypesChromeOption] = this.windowTypes;
+            }
+
+            foreach (KeyValuePair<string, object> pair in this.additionalChromeOptions)
+            {
+                chromeOptions.Add(pair.Key, pair.Value);
+            }
+
+            return chromeOptions;
+        }
+
+        private void AddAndroidOptions(Dictionary<string, object> chromeOptions)
+        {
+            chromeOptions["androidPackage"] = this.androidOptions.AndroidPackage;
+
+            if (!string.IsNullOrEmpty(this.androidOptions.AndroidDeviceSerial))
+            {
+                chromeOptions["androidDeviceSerial"] = this.androidOptions.AndroidDeviceSerial;
+            }
+
+            if (!string.IsNullOrEmpty(this.androidOptions.AndroidActivity))
+            {
+                chromeOptions["androidActivity"] = this.androidOptions.AndroidActivity;
+            }
+
+            if (!string.IsNullOrEmpty(this.androidOptions.AndroidProcess))
+            {
+                chromeOptions["androidProcess"] = this.androidOptions.AndroidProcess;
+            }
+
+            if (this.androidOptions.UseRunningApp)
+            {
+                chromeOptions["androidUseRunningApp"] = this.androidOptions.UseRunningApp;
+            }
+        }
+
+        private Dictionary<string, object> GeneratePerformanceLoggingPreferencesDictionary()
+        {
+            Dictionary<string, object> perfLoggingPrefsDictionary = new Dictionary<string, object>();
+            perfLoggingPrefsDictionary["enableNetwork"] = this.perfLoggingPreferences.IsCollectingNetworkEvents;
+            perfLoggingPrefsDictionary["enablePage"] = this.perfLoggingPreferences.IsCollectingPageEvents;
+
+            string tracingCategories = this.perfLoggingPreferences.TracingCategories;
+            if (!string.IsNullOrEmpty(tracingCategories))
+            {
+                perfLoggingPrefsDictionary["traceCategories"] = tracingCategories;
+            }
+
+            perfLoggingPrefsDictionary["bufferUsageReportingInterval"] = Convert.ToInt64(this.perfLoggingPreferences.BufferUsageReportingInterval.TotalMilliseconds);
+
+            return perfLoggingPrefsDictionary;
+        }
+
+        private Dictionary<string, object> GenerateMobileEmulationSettingsDictionary()
+        {
+            Dictionary<string, object> mobileEmulationSettings = new Dictionary<string, object>();
+
+            if (!string.IsNullOrEmpty(this.mobileEmulationDeviceName))
+            {
+                mobileEmulationSettings["deviceName"] = this.mobileEmulationDeviceName;
+            }
+            else if (this.mobileEmulationDeviceSettings != null)
+            {
+                mobileEmulationSettings["userAgent"] = this.mobileEmulationDeviceSettings.UserAgent;
+                Dictionary<string, object> deviceMetrics = new Dictionary<string, object>();
+                deviceMetrics["width"] = this.mobileEmulationDeviceSettings.Width;
+                deviceMetrics["height"] = this.mobileEmulationDeviceSettings.Height;
+                deviceMetrics["pixelRatio"] = this.mobileEmulationDeviceSettings.PixelRatio;
+                if (!this.mobileEmulationDeviceSettings.EnableTouchEvents)
+                {
+                    deviceMetrics["touch"] = this.mobileEmulationDeviceSettings.EnableTouchEvents;
+                }
+
+                mobileEmulationSettings["deviceMetrics"] = deviceMetrics;
+            }
+
+            return mobileEmulationSettings;
+        }
+    }
+    /// <summary>
+    /// Class to manage options specific to <see cref="ChromeDriver"/>
+    /// </summary>
+    /// <remarks>
+    /// Used with ChromeDriver.exe v17.0.963.0 and higher.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// ChromeOptions options = new ChromeOptions();
+    /// options.AddExtensions("\path\to\extension.crx");
+    /// options.BinaryLocation = "\path\to\chrome";
+    /// </code>
+    /// <para></para>
+    /// <para>For use with ChromeDriver:</para>
+    /// <para></para>
+    /// <code>
+    /// ChromeDriver driver = new ChromeDriver(options);
+    /// </code>
+    /// <para></para>
+    /// <para>For use with RemoteWebDriver:</para>
+    /// <para></para>
+    /// <code>
+    /// RemoteWebDriver driver = new RemoteWebDriver(new Uri("http://localhost:4444/wd/hub"), options.ToCapabilities());
+    /// </code>
+    /// </example>
+    public class ChromeOptions : ChromiumOptions
+    {
+        private const string ChromeOptionsCapabilityName = "chromeOptions";
+        private const string BrowserNameValue = "chrome";
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ChromeOptions"/> class.
+        /// </summary>
+        public ChromeOptions() : base()
+        {
+            this.BrowserName = BrowserNameValue;
+        }
+
+        /// <summary>
+        /// Gets the vendor prefix to apply to Chromium-specific capability names.
+        /// </summary>
+        protected override string VendorPrefix
+        {
+            get { return "goog"; }
+        }
+
+        /// <summary>
+        /// Gets the name of the capability used to store Chromium options in
+        /// an <see cref="ICapabilities"/> object.
+        /// </summary>
+        public override string CapabilityName
+        {
+            get { return string.Format(CultureInfo.InvariantCulture, "{0}:{1}", this.VendorPrefix, ChromeOptionsCapabilityName); }
+        }
+
+        /// <summary>
+        /// Provides a means to add additional capabilities not yet added as type safe options
+        /// for the Chrome driver.
+        /// </summary>
+        /// <param name="optionName">The name of the capability to add.</param>
+        /// <param name="optionValue">The value of the capability to add.</param>
+        /// <exception cref="ArgumentException">
+        /// thrown when attempting to add a capability for which there is already a type safe option, or
+        /// when <paramref name="optionName"/> is <see langword="null"/> or the empty string.
+        /// </exception>
+        /// <remarks>Calling <see cref="AddAdditionalChromeOption(string, object)"/>
+        /// where <paramref name="optionName"/> has already been added will overwrite the
+        /// existing value with the new value in <paramref name="optionValue"/>.
+        /// Calling this method adds capabilities to the Chrome-specific options object passed to
+        /// webdriver executable (property name 'goog:chromeOptions').</remarks>
+        public void AddAdditionalChromeOption(string optionName, object optionValue)
+        {
+            this.AddAdditionalChromiumOption(optionName, optionValue);
+        }
+    }
+}
