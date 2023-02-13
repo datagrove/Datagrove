@@ -362,6 +362,7 @@ public class GherkinCompiler
                     var classes = new Dictionary<string, string>();
 
                     docm.addScenario(sname);
+                    awaitCalls.WriteLine($"        //await new {name}().{sname}();");
 
                     // !! we need to initialize the classes here
                     // we need to initialize any that are used in the background as well
@@ -509,7 +510,7 @@ public class GherkinCompiler
 
 
     public StepSet ss;
-
+    public System.IO.StringWriter awaitCalls = new();
     public GherkinCompiler(string[] stepSpace, Assembly[] prog)
     {
         if (prog.Count() == 0)
@@ -724,7 +725,18 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
         // here we add a bunch of debug information the markdown loag.
         log.Append(c.ss.text());
         File.WriteAllText(outputStem + ".md", log.ToString());
+        File.WriteAllText(outputStem + "p.cs", 
+$@"
+#nullable enable
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+public class Program {{
+    // uncomment the test you are debugging.
+    public  static async Task Main() {{
+        {c.awaitCalls.ToString()}
+    }}
+    }}
+ ");
         File.WriteAllText(outputStem + ".json", doc.json());
         var mpath = outdir + "/" + tag + (tag == "" ? "" : ".") + "MissingStep.cs";
         if (c.stubSteps.Count() > 0)
