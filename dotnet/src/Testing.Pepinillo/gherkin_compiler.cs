@@ -730,10 +730,10 @@ $@"
 #nullable enable
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-public class Program {{
+public class DebugTest {{
     // uncomment the test you are debugging.
-    public  static async Task Main() {{
-        {c.awaitCalls.ToString()}
+    public  static async Task run() {{
+{c.awaitCalls.ToString()}
     }}
     }}
  ");
