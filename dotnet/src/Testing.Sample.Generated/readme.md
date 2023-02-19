@@ -1,1 +1,0 @@
-This is a generated project. Do not edit it directly. Instead, edit the source project and recompile.

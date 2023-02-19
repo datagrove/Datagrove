@@ -1,0 +1,189 @@
+﻿using Boa.Constrictor.Screenplay;
+using Datagrove.Testing.Boa;
+using FluentAssertions;
+using Microsoft.Playwright;
+using Datagrove.Testing.Selenium;
+using static Datagrove.Testing.Boa.WebLocator;
+
+namespace Boa.Constrictor.Example;
+
+// this example doesn't work any more, duckduckgo has changed their search pages
+
+
+[TestClass]
+public class ScreenplayWebUiTest
+{
+    private IActor Actor;
+
+    [TestInitialize]
+    public void InitializeBrowser()
+    {
+        var options = new pw1.PlaywrightOptions(pw1.BrowserType.Chrome, new BrowserTypeLaunchOptions
+        {
+            Headless = false
+        }, new BrowserNewContextOptions
+        {
+            ViewportSize = new ViewportSize
+            {
+                Width = 1920,
+                Height = 1080
+            },
+            RecordVideoDir = "videos"
+        });
+        var driver = new pw1.PlaywrightDriver(options);
+        Actor = new Actor(name: "Andy", logger: new ConsoleLogger());
+        Actor.Can(BrowseTheWeb.With(driver));
+    }
+
+    [TestCleanup]
+    public void QuitBrowser()
+    {
+        Actor.AttemptsTo(QuitWebDriver.ForBrowser());
+    }
+
+    [TestMethod]
+    public void TestDuckDuckGoWebSearch()
+    {
+        Actor.AttemptsTo(Navigate.ToUrl(SearchPage.Url));
+        Actor.AskingFor(ValueAttribute.Of(SearchPage.SearchInput)).Should().BeEmpty();
+        Actor.AttemptsTo(SearchDuckDuckGo.For("panda"));
+        Actor.WaitsUntil(Appearance.Of(ResultPage.ResultLinks), IsEqualTo.True());
+    }
+}
+
+
+public class SearchDuckDuckGo : ITask
+{
+    public string Phrase { get; }
+
+    private SearchDuckDuckGo(string phrase) =>
+      Phrase = phrase;
+
+    public static SearchDuckDuckGo For(string phrase) =>
+      new SearchDuckDuckGo(phrase);
+
+    public void PerformAs(IActor actor)
+    {
+        actor.AttemptsTo(SendKeys.To(SearchPage.SearchInput, Phrase));
+        actor.AttemptsTo(Click.On(SearchPage.SearchButton));
+    }
+}
+public static class ResultPage
+{
+    public static IWebLocator ResultLinks => L(
+      "DuckDuckGo Result Page Links",
+      By.ClassName("result__a"));
+}
+
+public static class SearchPage
+{
+    public const string Url = "https://www.duckduckgo.com/";
+
+    public static IWebLocator SearchButton => L(
+      "DuckDuckGo Search Button",
+      By.Id("search_button_homepage"));
+
+    public static IWebLocator SearchInput => L(
+      "DuckDuckGo Search Input",
+      By.Id("searchbox_input"));
+}
+
+namespace Datagrove.Testing.Selenium;
+
+using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
+using Microsoft.Playwright;
+using Microsoft.Playwright.MSTest;
+using Datagrove.Testing.Selenium;
+
+public class MyContext : IDisposable
+{
+
+
+    // compatible with WebDriver - synchronous
+    public PlaywrightDriver driver;
+    public MyContext(PlaywrightDriver driver)
+    {
+        this.driver = driver;
+    }
+    public static async Task<MyContext> create(TestContext t)
+    {
+        await Task.CompletedTask;
+        return new MyContext(new PlaywrightDriver());
+    }
+
+    public void Dispose()
+    {
+    }
+}
+
+[TestClass]
+public class UnitTest2
+{
+    public TestContext? TestContext { get; set; }
+
+    // build a class that returns the residual steps
+    public class Background
+    {
+        // some step that may be reused.
+        public MyContext step;
+        public Background(MyContext context)
+        {
+            this.step = context;
+        }
+    }
+    static public async Task<Background> background(MyContext x)
+    {
+        await Task.CompletedTask;
+        //step = x;
+
+        return new Background(x);
+        // exec steps, but leave the return the initalized steps.
+    }
+    [TestMethod]
+    [Ignore]
+    public void Test1()
+    {
+        using (var driver = new PlaywrightDriver())
+        {
+            driver.Navigate().GoToUrl("https://playwright.dev");
+            var x = driver.Title;
+            StringAssert.Matches(x, new Regex("Playwright"));
+
+            var getStarted = driver.FindElement(By.LinkText("Get started"));
+            StringAssert.Equals(getStarted.GetAttribute("href"),"/docs/intro");
+            getStarted.Click();
+
+            // this needs to be a wait? how in selenium?
+            // noted that for compatibility we may need expected conditions to work even though the selenium team states lambdas are to be preferred.
+            new WebDriverWait(driver,TimeSpan.FromSeconds(30)).Until(ExpectedConditions.UrlContains("intro"));
+            
+             StringAssert.Matches(driver.Url, new Regex(".*intro"));
+        }
+    }
+
+    [TestClass]
+    public class UnitTest1 : PageTest
+    {
+        [TestMethod]
+        public async Task HomepageHasPlaywrightInTitleAndGetStartedLinkLinkingtoTheIntroPage()
+        {
+            await Page.GotoAsync("https://playwright.dev");
+
+            // Expect a title "to contain" a substring.
+            await Expect(Page).ToHaveTitleAsync(new Regex("Playwright"));
+
+            // create a locator
+            var getStarted = Page.GetByRole(AriaRole.Link, new() { Name = "Get started" });
+
+            // Expect an attribute "to be strictly equal" to the value.
+            await Expect(getStarted).ToHaveAttributeAsync("href", "/docs/intro");
+
+            // Click the get started link.
+            await getStarted.ClickAsync();
+
+            // Expects the URL to contain intro.
+            await Expect(Page).ToHaveURLAsync(new Regex(".*intro"));
+        }
+    }
+}
