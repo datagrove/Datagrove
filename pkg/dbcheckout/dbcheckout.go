@@ -1,9 +1,12 @@
 package dbcheckout
 
 import (
+	"bytes"
 	"encoding/json"
+	"html/template"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -11,11 +14,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var home string = ""
+var opt *web.WebAppOptions
 var mu sync.Mutex
 var avail = []int{}
 var lease = map[int]string{}
-var listen map[web.Peer]bool
+var listen = map[web.Peer]bool{}
 
 type Configure struct {
 	Nworker   int    `json:"nworker"`
@@ -24,6 +27,10 @@ type Configure struct {
 	Db        string `json:"db"`
 	Bak       string `json:"bak"`
 	Datadir   string `json:"datadir"`
+}
+type V struct {
+	*Configure
+	I int
 }
 
 var configure Configure
@@ -46,14 +53,32 @@ func (*CheckoutClient) Notify(method string, params []byte, more []byte) {
 
 }
 
+type Reservation struct {
+	Id          int    `json:"id"`
+	Description string `json:"description"`
+}
+
 func update() {
-	b, _ := json.Marshal(lease)
+	a := []Reservation{}
+	for k, v := range lease {
+		a = append(a, Reservation{
+			Id:          k,
+			Description: v,
+		})
+	}
+	b, _ := json.Marshal(a)
 	for w := range listen {
 		w.Notify("update", b, nil)
 	}
 }
+func reconfig() {
+	b, _ := json.Marshal(configure)
+	for w := range listen {
+		w.Notify("config", b, nil)
+	}
+}
 func load() {
-	b, e := os.ReadFile(filepath.Join(home, "config.json"))
+	b, e := os.ReadFile(filepath.Join(opt.Home, "config.json"))
 	if e != nil {
 		return
 	}
@@ -66,6 +91,37 @@ func load() {
 	}
 	lease = map[int]string{}
 	update()
+	reconfig()
+}
+
+const restartSql = `
+SET @DatabaseName = N'{{.Database}}_{{.I}}'
+DECLARE @SQL varchar(max)
+SELECT @SQL = COALESCE(@SQL,'') + 'Kill ' + Convert(varchar, SPId) + ';'
+FROM MASTER..SysProcesses
+WHERE DBId = DB_ID(@DatabaseName) AND SPId <> @@SPId
+EXEC(@SQL)
+GO
+
+RESTORE DATABASE @DatabaseName from DATABASE_SNAPSHOT = '{{.Database}}_ss
+GO
+`
+
+func refreshDb(n int) {
+	var v = &V{
+		Configure: &configure,
+		I:         n,
+	}
+	t, err := template.New("todos").Parse(restartSql)
+	if err != nil {
+		panic(err)
+	}
+	var tpl bytes.Buffer
+	err = t.Execute(&tpl, v)
+	if err != nil {
+		panic(err)
+	}
+	exec.Command(tpl.String())
 }
 
 // Rpc implements Peer
@@ -73,29 +129,38 @@ func (s *CheckoutClient) Rpc(method string, params []byte, data []byte) (any, []
 	mu.Lock()
 	defer mu.Unlock()
 	switch method {
-	case "listen":
-		listen[s.browser] = true
+
 	case "configure":
-		v := []string{}
+		v := ""
 		json.Unmarshal(params, &v)
 		if len(v) > 0 {
-			os.WriteFile(filepath.Join(home, "config.json"), []byte(v[0]), os.ModePerm)
+			os.WriteFile(filepath.Join(opt.Home, "config.json"), []byte(v), os.ModePerm)
 			load()
 		}
 	case "reserve":
 		v := ""
 		json.Unmarshal(params, &v)
-		n := avail[len(avail)-1]
-		avail = avail[0 : len(avail)-1]
-		lease[n] = v
-		// no arguments, just get a database
-		update()
+		n := -1
+		if len(avail) > 0 {
+			n := avail[len(avail)-1]
+			refreshDb(n)
+			// we need to restore the database to a snapshot here.
+			// we need to kill all the users, unclear if the web will then just restart
+			avail = avail[0 : len(avail)-1]
+			lease[n] = v
+			// no arguments, just get a database
+			update()
+		}
 		return &n, nil, nil
 	case "release":
 		v := 0
 		json.Unmarshal(params, &v)
 		avail = append(avail, v)
 		log.Printf("Release %d", v)
+		delete(lease, v)
+		update()
+	case "releaseAll":
+		load()
 	}
 	return nil, nil, nil
 }
@@ -106,20 +171,21 @@ func New() *cobra.Command {
 	return &cobra.Command{
 		Use: "reserve [dir]",
 		Run: func(cmd *cobra.Command, args []string) {
-			opt := web.DefaultOptions()
+			opt = web.DefaultOptions()
 			if len(args) > 0 {
 				opt.Home = args[0]
 			}
+			load()
 			NewCheckoutClient := func(browser web.WebAppClient) (web.Peer, error) {
+				mu.Lock()
+				defer mu.Unlock()
+				listen[browser] = true
+				reconfig()
 				return &CheckoutClient{
 					browser: browser,
 				}, nil
 			}
-			home = opt.Home
 			web.Run(NewCheckoutClient, opt)
 		},
 	}
-	// c := color.New(color.FgCyan).Add(color.Underline)
-	// c.Printf("dgreserve")
-
 }

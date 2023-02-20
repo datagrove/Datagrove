@@ -1,11 +1,22 @@
 package web
 
 import (
+	"encoding/json"
 	"io"
 
 	"github.com/gorilla/websocket"
 )
 
+type Rpc struct {
+	Method string          `json:"method,omitempty"`
+	Id     int64           `json:"id,omitempty"`
+	Params json.RawMessage `json:"params,omitempty"`
+}
+type RpcReply struct {
+	Id     int64           `json:"id,omitempty"`
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  string          `json:"error,omitempty"`
+}
 type Peer interface {
 	// primary need is for a way to read/write rpc's
 	// json, cbor, arrow
@@ -26,13 +37,24 @@ type Client struct {
 }
 
 // Notify implements Peer
-func (*Client) Notify(method string, params []byte, data []byte) {
-	panic("unimplemented")
+func (c *Client) Notify(method string, params []byte, data []byte) {
+	b, _ := json.Marshal(&Rpc{
+		Method: method,
+		Id:     0,
+		Params: params,
+	})
+	c.send <- b
 }
 
 // Rpc implements Peer
-func (*Client) Rpc(method string, params []byte, data []byte) (any, []byte, error) {
-	panic("unimplemented")
+func (c *Client) Rpc(method string, params []byte, data []byte) (any, []byte, error) {
+	b, _ := json.Marshal(&Rpc{
+		Method: method,
+		Id:     0,
+		Params: params,
+	})
+	c.send <- b
+	return nil, nil, nil
 }
 
 var _ Peer = (*Client)(nil)

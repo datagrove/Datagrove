@@ -173,9 +173,11 @@ func Run(new NewWebClient, s ...*WebAppOptions) {
 	})
 	r2 := c.Handler(r)
 
-	err := browser.OpenURL("http://localhost" + opt.Port)
-	if err != nil {
-		log.Print(err)
+	if false {
+		err := browser.OpenURL("http://localhost" + opt.Port)
+		if err != nil {
+			log.Print(err)
+		}
 	}
 	if len(opt.CertPem) > 0 {
 		log.Fatal(http.ListenAndServeTLS(opt.Port, opt.CertPem, opt.KeyPem, r2))
@@ -193,18 +195,6 @@ var upgrader2 = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
-}
-
-type Rpc struct {
-	Method  string          `json:"method,omitempty"`
-	Id      int64           `json:"id,omitempty"`
-	Channel uint64          `json:"channel,omitempty"`
-	Params  json.RawMessage `json:"params,omitempty"`
-}
-type RpcReply struct {
-	Id     int64           `json:"id,omitempty"`
-	Result json.RawMessage `json:"result,omitempty"`
-	Error  string          `json:"error,omitempty"`
 }
 
 // upload a file

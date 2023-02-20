@@ -4,9 +4,9 @@
 export interface RpcInterface {
     method: string | number | undefined;
     id: number
-    params: any;
-    result: any;
-    error: any;
+    params?: any;
+    result?: any;
+    error?: any;
 }
 
 export type RpcCallback = (o: RpcInterface) => void;
@@ -21,7 +21,7 @@ export class Rpc {
     onmessage: RpcCallback
 
     constructor(props?: { api?: string, onmessage?: RpcCallback }) {
-        this.api = props?.api ?? "/ws"
+        this.api = props?.api ?? "ws://"+ location.hostname + ":" + location.port + "/ws"
         this.onmessage = props?.onmessage ?? ((o: RpcInterface) => { })
         this.connect();
     }
@@ -36,10 +36,9 @@ export class Rpc {
             v[1](error)
         }
     }
-    async askBin(channel: number, m: string, params: any, b: ArrayBuffer[]): Promise<any> {
+    async askBin(m: string, params: any, b: ArrayBuffer[]): Promise<any> {
         const id = this.nextId++;
-        const s = {
-            channel: channel,
+        const s : RpcInterface = {
             method: m,
             id: id,
             params: params
@@ -51,10 +50,10 @@ export class Rpc {
             this.pending.set(id, [resolve, reject]);
         });
     }
-    async ask(channel: number, m: string, params: any): Promise<any> {
+    async ask( m: string, params?: any): Promise<any> {
         const id = this.nextId++;
         const s = {
-            channel: channel,
+
             method: m,
             id: id,
             params: params
