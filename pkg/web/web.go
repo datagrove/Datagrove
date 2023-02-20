@@ -24,22 +24,14 @@ import (
 	"github.com/rs/cors"
 )
 
+// each app is going to have some shared state and some client state, and potentially some cluster/consensus state
+
 type WebAppOptions struct {
 	Home      string
 	WriteHome string
 	Port      string
 	CertPem   string
 	KeyPem    string
-}
-
-type Peer interface {
-	// primary need is for a way to read/write rpc's
-	// json, cbor, arrow
-	// {json rpc}\0binary
-	// if first character is 0 then begin with cbor
-	io.Closer
-	Rpc(method string, params []byte) ([]byte, error)
-	Notify(method string, params []byte)
 }
 
 // it might be best to generate rpc's?
@@ -141,7 +133,11 @@ func DefaultOptions() *WebAppOptions {
 		Port: ":5174",
 	}
 }
+
+var newWebClient NewWebClient
+
 func Run(new NewWebClient, s ...*WebAppOptions) {
+	newWebClient = new
 	var opt *WebAppOptions
 	if len(s) > 0 {
 		opt = s[0]
@@ -188,23 +184,9 @@ func Run(new NewWebClient, s ...*WebAppOptions) {
 	}
 }
 
-func (c *Client) Close() {
-	// close the websocket, its probably closed already though
-	c.conn.Close()
-}
-
 func Json(a any) []byte {
 	b, _ := json.Marshal(a)
 	return b
-}
-
-// wrapper for websocket, should we make generic?
-type Client struct {
-	id       string
-	conn     *websocket.Conn
-	open     []string
-	writable []uint8     // 1 = writable, 2=subscribed
-	send     chan []byte // update a batch of logs
 }
 
 var upgrader2 = websocket.Upgrader{
@@ -215,12 +197,12 @@ var upgrader2 = websocket.Upgrader{
 
 type Rpc struct {
 	Method  string          `json:"method,omitempty"`
-	Id      string          `json:"id,omitempty,string"`
+	Id      int64           `json:"id,omitempty"`
 	Channel uint64          `json:"channel,omitempty"`
 	Params  json.RawMessage `json:"params,omitempty"`
 }
 type RpcReply struct {
-	Id     string          `json:"id,omitempty,string"`
+	Id     int64           `json:"id,omitempty"`
 	Result json.RawMessage `json:"result,omitempty"`
 	Error  string          `json:"error,omitempty"`
 }
@@ -292,6 +274,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		send:     make(chan []byte, 256),
 	}
 
+	c2, _ := newWebClient(c)
 	go func() {
 		// this defer will make sure that the ssh is closed when the websocket
 		// is closed
@@ -306,16 +289,15 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		var m Rpc
 		again := func() bool {
 			_, message, err := c.conn.ReadMessage()
-			log.Printf("%s,%v", string(message), err)
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					log.Printf("error: %v", err)
 				}
-
-				return false
+				return false // breaks out of loop
 			}
 			json.Unmarshal(message, &m)
-			jsonErr := func(e error) bool {
+			if m.Id > 0 {
+				a, _, e := c2.Rpc(m.Method, m.Params, nil)
 				if e != nil {
 					mb, _ := json.Marshal(&RpcReply{
 						Id:    m.Id,
@@ -324,79 +306,17 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 					c.send <- mb
 					return true
 				} else {
-					return false
+					mbx, _ := json.Marshal(a)
+					mb, _ := json.Marshal(&RpcReply{
+						Id:     m.Id,
+						Result: mbx, // returns a channel, not used currently
+					})
+					c.send <- mb
 				}
+			} else {
+				c2.Notify(m.Method, m.Params, nil)
 			}
-			jsonOk := func(a []byte) {
-				mb, _ := json.Marshal(&RpcReply{
-					Id:     m.Id,
-					Result: a, // returns a channel, not used currently
-				})
-				c.send <- mb
-			}
-			jsonReturn := func(a any, e error) {
-				if e != nil {
-					jsonErr(e)
-				} else {
-					mb, _ := json.Marshal(a)
-					jsonOk(mb)
-				}
-			}
-			_ = jsonReturn
-
-			switch m.Method {
-			case "open":
-				jsonOk([]byte("0"))
-				return true
-			case "close":
-				// not used
-				return true
-			case "logout":
-				jsonReturn(1, nil)
-				return true
-			case "login":
-				// this is a login message
-				// return the databases if successful
-				// most recent is kept in localStorage
-				var opt struct {
-					Server   string `json:"server,omitempty"`
-					User     string `json:"user,omitempty"`
-					Password string `json:"password,omitempty"`
-					Totp     string `json:"totp,omitempty"`
-					Drop     string `json:"drop,omitempty"`
-				}
-				json.Unmarshal(m.Params, &opt)
-
-				if err == nil {
-					log.Printf("Login: %s %s\n", opt.User, c.id)
-				} else {
-					log.Printf("Login failed %s %s", opt.User, err.Error())
-				}
-
-				jsonReturn(c.id, err)
-				return true
-			}
-
-			switch m.Method {
-
-			case "hello":
-				var opt struct {
-					Db string `json:"db,omitempty"`
-				}
-				e := json.Unmarshal(m.Params, &opt)
-				if jsonErr(e) {
-					return false
-				}
-				if e != nil {
-					jsonErr(e)
-					return false
-				}
-				jsonReturn([]byte{}, nil)
-				return true
-			default:
-				log.Printf("\nUnknown method %s\n", m.Method)
-				return false
-			}
+			return true
 		}
 		for again() {
 		}
@@ -417,7 +337,6 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 						c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 						return
 					}
-
 					w, err := c.conn.NextWriter(websocket.TextMessage)
 					if err != nil {
 						return
