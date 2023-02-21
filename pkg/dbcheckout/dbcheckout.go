@@ -1,12 +1,9 @@
 package dbcheckout
 
 import (
-	"bytes"
 	"encoding/json"
-	"html/template"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -94,36 +91,6 @@ func load() {
 	reconfig()
 }
 
-const restartSql = `
-SET @DatabaseName = N'{{.Database}}_{{.I}}'
-DECLARE @SQL varchar(max)
-SELECT @SQL = COALESCE(@SQL,'') + 'Kill ' + Convert(varchar, SPId) + ';'
-FROM MASTER..SysProcesses
-WHERE DBId = DB_ID(@DatabaseName) AND SPId <> @@SPId
-EXEC(@SQL)
-GO
-
-RESTORE DATABASE @DatabaseName from DATABASE_SNAPSHOT = '{{.Database}}_ss
-GO
-`
-
-func refreshDb(n int) {
-	var v = &V{
-		Configure: &configure,
-		I:         n,
-	}
-	t, err := template.New("todos").Parse(restartSql)
-	if err != nil {
-		panic(err)
-	}
-	var tpl bytes.Buffer
-	err = t.Execute(&tpl, v)
-	if err != nil {
-		panic(err)
-	}
-	exec.Command(tpl.String())
-}
-
 // Rpc implements Peer
 func (s *CheckoutClient) Rpc(method string, params []byte, data []byte) (any, []byte, error) {
 	mu.Lock()
@@ -143,7 +110,7 @@ func (s *CheckoutClient) Rpc(method string, params []byte, data []byte) (any, []
 		n := -1
 		if len(avail) > 0 {
 			n := avail[len(avail)-1]
-			refreshDb(n)
+
 			// we need to restore the database to a snapshot here.
 			// we need to kill all the users, unclear if the web will then just restart
 			avail = avail[0 : len(avail)-1]

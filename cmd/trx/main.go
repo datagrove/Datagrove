@@ -48,15 +48,6 @@ func IndexFiles(input string, extension string) []string {
 	return r
 }
 
-// this walks pth and writes the selected files (for now just jpg) to a json that is just string[]
-
-// recursive copy
-
-func Copy(from, to string) {
-	os.RemoveAll(to)
-	os.Mkdir(to, os.ModePerm)
-	f.CopyFiles(from, to)
-}
 func TrxResults(path string) []trx.UnitTestResult {
 	var t trx.TestRun
 	b, e := os.ReadFile(path)
