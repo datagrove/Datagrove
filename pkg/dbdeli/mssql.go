@@ -1,4 +1,4 @@
-package dbcheckout
+package dbdeli
 
 import (
 	"database/sql"

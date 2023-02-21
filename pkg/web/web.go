@@ -4,6 +4,7 @@ package web
 import (
 	"encoding/base32"
 	"encoding/json"
+	"io/ioutil"
 
 	"fmt"
 	"io"
@@ -22,25 +23,13 @@ import (
 	"github.com/pkg/browser"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"github.com/spf13/cobra"
 )
 
 // each app is going to have some shared state and some client state, and potentially some cluster/consensus state
 
-type WebAppOptions struct {
-	Home      string
-	WriteHome string
-	Port      string
-	CertPem   string
-	KeyPem    string
-}
-
-// it might be best to generate rpc's?
-type WebApp interface {
-	Connect(cl WebAppClient) Peer
-}
-type WebAppClient interface {
-	Peer
-}
+// this is a global callback defined by the library user (provided to run)
+// it's call when a websocket is connected to set up the connection
 
 type SecretCookie = string
 type SessionId = string
@@ -124,26 +113,20 @@ type Config struct {
 	Drop      string `json:"drop,omitempty"`
 }
 
-type NewWebClient = func(w WebAppClient) (Peer, error)
+// each time a client connects, it is initialized with new client.
 
-func DefaultOptions() *WebAppOptions {
+type Configure = func(data []byte) error
+
+func Run(new NewWebClient, cmd *cobra.Command, args []string, configure Configure) {
 	mydir, _ := os.Getwd()
-	return &WebAppOptions{
-		Home: mydir,
-		Port: ":5174",
+	if len(args) > 0 {
+		mydir = args[0]
 	}
-}
+	server.onConnect = new
+	server.Home = mydir
 
-var newWebClient NewWebClient
+	guest, _ := new(server, nil)
 
-func Run(new NewWebClient, s ...*WebAppOptions) {
-	newWebClient = new
-	var opt *WebAppOptions
-	if len(s) > 0 {
-		opt = s[0]
-	} else {
-		opt = DefaultOptions()
-	}
 	mime.AddExtensionType(".js", "application/javascript")
 	r := mux.NewRouter()
 	r.Handle("/debug/vars", http.DefaultServeMux)
@@ -158,6 +141,14 @@ func Run(new NewWebClient, s ...*WebAppOptions) {
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(w, r)
 	})
+	r.HandleFunc("/json/{method}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		method := vars["method"]
+		header, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			guest.Rpc(method, header, nil)
+		}
+	})
 	r.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		serveFetch(w, r)
 	})
@@ -165,7 +156,7 @@ func Run(new NewWebClient, s ...*WebAppOptions) {
 		serveWrite(w, r)
 	})
 
-	spa := spaHandler{staticPath: opt.Home, indexPath: filepath.Join(opt.Home, "index.html")}
+	spa := spaHandler{staticPath: server.Home, indexPath: filepath.Join(server.Home, "index.html")}
 	r.PathPrefix("/").Handler(spa)
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -174,21 +165,16 @@ func Run(new NewWebClient, s ...*WebAppOptions) {
 	r2 := c.Handler(r)
 
 	if false {
-		err := browser.OpenURL("http://localhost" + opt.Port)
+		err := browser.OpenURL("http://localhost" + server.Url)
 		if err != nil {
 			log.Print(err)
 		}
 	}
-	if len(opt.CertPem) > 0 {
-		log.Fatal(http.ListenAndServeTLS(opt.Port, opt.CertPem, opt.KeyPem, r2))
+	if len(server.CertPem) > 0 {
+		log.Fatal(http.ListenAndServeTLS(server.Url, server.CertPem, server.KeyPem, r2))
 	} else {
-		log.Fatal(http.ListenAndServe(opt.Port, r2))
+		log.Fatal(http.ListenAndServe(server.Url, r2))
 	}
-}
-
-func Json(a any) []byte {
-	b, _ := json.Marshal(a)
-	return b
 }
 
 var upgrader2 = websocket.Upgrader{
@@ -264,7 +250,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		send:     make(chan []byte, 256),
 	}
 
-	c2, _ := newWebClient(c)
+	c2, _ := server.onConnect(server, c)
 	go func() {
 		// this defer will make sure that the ssh is closed when the websocket
 		// is closed

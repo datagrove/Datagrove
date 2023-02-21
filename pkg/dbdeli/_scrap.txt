@@ -1,0 +1,78 @@
+// the idea here is when the state changes 
+func update() {
+	a := []Reservation{}
+	for k, v := range lease {
+		a = append(a, Reservation{
+			Id:          k,
+			Description: v,
+		})
+	}
+	b, _ := json.Marshal(a)
+	for w := range listen {
+		w.Notify("update", b, nil)
+	}
+}
+package dbcheckout
+
+// not clear that this is even a good idea, remove?
+// just manages editor for the config file, but doesn't everyone already have an editor? not that many values anyway?
+
+// if this is a good idea, then maybe this should put in the web app
+
+/*
+func load() {
+	b, e := os.ReadFile(filepath.Join(opt.Home, "config.json"))
+	if e != nil {
+		return
+	}
+
+	json.Unmarshal(b, &configure)
+	// load a configuration imediately releases all locks with prejudice
+	avail = make([]int, configure.Limit)
+	for x := 0; x < configure.Limit; x++ {
+		avail[x] = x
+	}
+	lease = map[int]string{}
+	update()
+	reconfig()
+}
+func reconfig() {
+	b, _ := json.Marshal(configure)
+	for w := range listen {
+		w.Notify("config", b, nil)
+	}
+}
+*/
+	// remove?
+	case "configure":
+		v := ""
+		json.Unmarshal(params, &v)
+		if len(v) > 0 {
+			os.WriteFile(filepath.Join(opt.Home, "config.json"), []byte(v), os.ModePerm)
+			load()
+		}
+
+			opt := web.DefaultOptions()
+			if len(args) > 0 {
+				opt.Home = args[0]
+			}
+
+			viper.SetConfigName("config")         // name of config file (without extension)
+			viper.SetConfigType("yaml")           // REQUIRED if the config file does not have the extension in the name
+			viper.AddConfigPath("/etc/appname/")  // path to look for the config file in
+			viper.AddConfigPath("$HOME/.appname") // call multiple times to add many search paths
+			viper.AddConfigPath(".")              // optionally look for config in the working directory
+			err := viper.ReadInConfig()           // Find and read the config file
+			if err != nil {                       // Handle errors reading the config file
+				if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+					// Config file not found; ignore error if desired
+				} else {
+					// Config file was found but another error was produced
+					panic(err)
+				}
+			}
+			app.Config()
+			viper.OnConfigChange(func(e fsnotify.Event) {
+				app.Config()
+			})
+			viper.WatchConfig()

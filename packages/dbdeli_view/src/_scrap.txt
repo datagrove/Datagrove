@@ -1,0 +1,117 @@
+We could have a set of snippets that we store
+
+// do we need 100 for v10 and 100 for v100?
+// how do we execute this with sqlcmd?
+export const killall = (db: string) => `DECLARE @DatabaseName nvarchar(50)
+SET @DatabaseName = N'${db}'
+DECLARE @SQL varchar(max)
+SELECT @SQL = COALESCE(@SQL,'') + 'Kill ' + Convert(varchar, SPId) + ';'
+FROM MASTER..SysProcesses
+WHERE DBId = DB_ID(@DatabaseName) AND SPId <> @@SPId
+EXEC(@SQL)`
+
+export const reset_db = (db: string) => `RESTORE DATABASE ${db} from DATABASE_SNAPSHOT = '${db}_ss'`
+
+export const snapshot = (db: string, path: string) => `CREATE DATABASE ${db}_ss ON  ( NAME = ${db}, FILENAME = '${path}' ) AS SNAPSHOT OF ${db}`
+
+
+// do we need 100 for v10 and 100 for v100?
+// how do we execute this with sqlcmd?
+export const killall = (db: string) => `DECLARE @DatabaseName nvarchar(50)
+SET @DatabaseName = N'${db}'
+DECLARE @SQL varchar(max)
+SELECT @SQL = COALESCE(@SQL,'') + 'Kill ' + Convert(varchar, SPId) + ';'
+FROM MASTER..SysProcesses
+WHERE DBId = DB_ID(@DatabaseName) AND SPId <> @@SPId
+EXEC(@SQL)`
+
+export const reset_db = (db: string) => `RESTORE DATABASE ${db} from DATABASE_SNAPSHOT = '${db}_ss'`
+
+export const snapshot = (db: string, path: string) => `CREATE DATABASE ${db}_ss ON  ( NAME = ${db}, FILENAME = '${path}' ) AS SNAPSHOT OF ${db}`
+
+
+
+export function CopyFiles() {
+    const cd = (): string => nstring(config().nworker, (i: number) => `copy /y tenant_template /tenant${i}`)
+  
+    return (
+      <main class="mx-auto text-gray-700 p-4">
+        <CodeView language={'json'}
+          downloadAs='copytenant.bat'
+          code={cd()}
+        />
+      </main>
+    );
+  }
+  
+  // call every time there is a new database to use.
+  // how can we look in the bak file to find out the mdf to move?
+  export function create_db(s: TestSetup, i: number) {
+    const db = `${s.db}_${i}`
+    const dbpath = `${s.datadir}\\${db}`
+    return `\ndrop database if exists ${db}\nGO\nRESTORE DATABASE [${s.db}_${i}] FROM  DISK = N'${s.bak}' WITH  FILE = 1,  MOVE N'iMISMain15' TO N'${dbpath}.mdf',  MOVE N'iMISMain15_log' TO N'${dbpath}.ldf',  NOUNLOAD,  STATS = 5\nGO\n`
+      + snapshot(db, dbpath + ".ss")
+      + "\nGO\n"
+  }
+
+
+export const nstring = (n: number, fn: (i: number) => string) =>
+  [...Array(n)].map((_, i) => fn(i)).join("\n")
+
+  export function Sql() {
+    const sql = () => nstring(config().nworker, (i: number) => create_db(config(), i))
+    return (
+      <main class="mx-auto text-gray-700 p-4">
+        <CodeView language={'json'}
+          downloadAs='build.sql'
+          code={sql()}
+        />
+      </main>
+    );
+  }
+
+// would like some ability to do template expansion. 
+/*
+import { CodeView, config, TestSetup } from "src"
+
+  
+  // templating is basically allowing loops over a range of numbers in this case, with possibly some functions on those number
+  // it could just be a javascript play ground? typescript playground?
+  // with or without typing? 
+  interface deliPlate {
+    limit: number
+    template: any
+    
+  }
+  export function make_tenant(s: TestSetup) {
+    let tenant: any[] = []
+    // push a standard server that can stay running in the normal way.
+        tenant.push(     
+  }
+  
+  export function Tenant() {
+  
+    return (
+      <main class="mx-auto text-gray-700 p-4">
+        <CodeView language={'json'}
+          downloadAs='tenant.json'
+          code={JSON.stringify(make_tenant(config()), null, "    ")}
+        />
+      </main>
+    );
+  }
+  
+
+            <Route path="/tenant" component={Tenant} />
+          <Route path="/copy" component={CopyFiles} />
+          <Route path="/db" component={Sql} />
+*/
+
+export interface TestSetup {
+  nworker: number
+  host: string
+  sqlserver: string
+  db: string  // root name of database iMISMain10
+  bak: string // database to restore
+  datadir: string
+}

@@ -1,4 +1,4 @@
-package dbcheckout
+package dbdeli
 
 import (
 	"database/sql"
@@ -11,6 +11,7 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 )
 
+// this is basic functionality to connect to sql server.
 func Test_sql(t *testing.T) {
 	var server = "localhost"
 	var user = "sa"
