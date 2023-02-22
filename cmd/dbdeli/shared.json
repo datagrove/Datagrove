@@ -1,0 +1,14 @@
+{
+    "sku": {
+        "v10": {
+            "limit": 100,
+            "database": "v10.bak",
+            "databaseType": "mssql"
+        },
+        "v100": {
+            "limit": 100,
+            "database": "v100.bak",
+            "databaseType": "mssql"
+        }
+    }
+}

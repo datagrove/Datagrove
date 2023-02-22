@@ -131,10 +131,30 @@ func Run(opt *Options) {
 	r.HandleFunc("/json/{method}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		method := vars["method"]
-		header, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			guest.Rpc(method, header, nil)
+		params := r.URL.Query().Get("p")
+
+		var a any
+		var b []byte
+		var c error
+		if len(params) > 0 {
+			a, b, c = guest.Rpc(method, []byte(params), nil)
+			if c != nil {
+				return
+			}
+		} else {
+			header, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				return
+			}
+			a, b, c = guest.Rpc(method, header, nil)
+			if c != nil {
+				return
+			}
 		}
+		_ = b
+		bx, _ := json.Marshal(a)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(bx)
 	})
 	r.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		serveFetch(w, r)
@@ -240,6 +260,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		writable: []uint8{},
 		send:     make(chan []byte, 256),
 	}
+	server.Subscribe("update", c)
 
 	c2, _ := server.opt.New(server, c)
 	go func() {
@@ -263,26 +284,23 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 				return false // breaks out of loop
 			}
 			json.Unmarshal(message, &m)
-			if m.Id > 0 {
-				a, _, e := c2.Rpc(m.Method, m.Params, nil)
-				if e != nil {
-					mb, _ := json.Marshal(&RpcReply{
-						Id:    m.Id,
-						Error: e.Error(),
-					})
-					c.send <- mb
-					return true
-				} else {
-					mbx, _ := json.Marshal(a)
-					mb, _ := json.Marshal(&RpcReply{
-						Id:     m.Id,
-						Result: mbx, // returns a channel, not used currently
-					})
-					c.send <- mb
-				}
+			a, _, e := c2.Rpc(m.Method, m.Params, nil)
+			if e != nil {
+				mb, _ := json.Marshal(&RpcReply{
+					Id:    m.Id,
+					Error: e.Error(),
+				})
+				c.send <- mb
+				return true
 			} else {
-				c2.Notify(m.Method, m.Params, nil)
+				mbx, _ := json.Marshal(a)
+				mb, _ := json.Marshal(&RpcReply{
+					Id:     m.Id,
+					Result: mbx, // returns a channel, not used currently
+				})
+				c.send <- mb
 			}
+
 			return true
 		}
 		for again() {

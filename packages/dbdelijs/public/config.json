@@ -1,8 +1,0 @@
-{
-    "nworker": 100,
-    "host": "asi.datagrove.com",
-    "sqlserver": "LIGHTS\\MSSQLSERVER01",
-    "db": "iMISMain10",
-    "bak": "D:\\DB\\v10.bak",
-    "datadir": "d:\\db"
-}

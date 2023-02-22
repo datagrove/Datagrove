@@ -76,3 +76,20 @@ func reconfig() {
 				app.Config()
 			})
 			viper.WatchConfig()
+
+/*
+// Close implements Peer
+func (s *CheckoutClient) Close() error {
+	return nil
+}
+
+// we should compose this interface so this is optional
+func (*CheckoutClient) Notify(method string, params []byte, more []byte) {
+	// we don't use any notifications, but this is part of the Peer interface
+}
+func (s *CheckoutClient) WebRpc(method string, params []byte, data []byte) (any, []byte, error) {
+
+	// this needs to be a web api for the convenience of the test code
+	return s.Rpc(method, params, data)
+}
+*/

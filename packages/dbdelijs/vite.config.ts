@@ -4,6 +4,9 @@ import solidPlugin from 'vite-plugin-solid';
 
 export default defineConfig({
     plugins: [solidPlugin()],
+    build: {
+        outDir: '../../cmd/dbdeli/dist'
+    },
     server: {
         proxy: {
             '/ws': {

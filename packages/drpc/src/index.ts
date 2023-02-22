@@ -20,9 +20,9 @@ export class Rpc {
     api: string
     onmessage: RpcCallback
 
-    constructor(props?: { api?: string, onmessage?: RpcCallback }) {
+    constructor(props: { api?: string, onmessage: RpcCallback }) {
         this.api = props?.api ?? "ws://"+ location.hostname + ":" + location.port + "/ws"
-        this.onmessage = props?.onmessage ?? ((o: RpcInterface) => { })
+        this.onmessage = props.onmessage
         this.connect();
     }
 

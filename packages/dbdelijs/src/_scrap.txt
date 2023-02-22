@@ -115,3 +115,45 @@ export interface TestSetup {
   bak: string // database to restore
   datadir: string
 }
+
+// bad lever?
+//   <Button onClick={() => releaseAll()}>Release all</Button>
+/*
+export function Configure() {
+  let cm: CodeMirror
+  let div: HTMLDivElement
+  onMount(() => {
+    cm = new CodeMirror(div, JSON.stringify(config(), null, "    "))
+  })
+  const savefn = () => {
+    rpc.ask('configure', cm.text)
+  }
+  return (
+    <main class="mx-auto text-gray-700 p-4" >
+      <Button class='mb-2' onClick={savefn}>Save</Button>
+      <div ref={div!} />
+    </main >
+  );
+}
+import json from 'highlight.js/lib/languages/json';
+import hljs from 'highlight.js/lib/core';
+hljs.registerLanguage('json', json);
+
+import { CodeMirror } from '../../codemirror/src'
+          <Route path="/setup" component={Configure} />
+*/
+
+/*
+not used
+interface Configure {
+  sku: {
+    [key: string]: ConfigureSku
+  }
+}
+interface ConfigureSku {
+  name: string
+  limit: number
+  db: string
+}
+export const [config, setConfig] = createSignal<Configure>({sku:{}})
+*/

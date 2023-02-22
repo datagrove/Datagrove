@@ -2,7 +2,6 @@ package web
 
 import (
 	"encoding/json"
-	"io"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -14,17 +13,49 @@ import (
 // maybe each topic should be a file in a directory (separate? what if we are running from readonly? readonly starter config?)
 // there are also more complex behaviors like update by character then commit.
 type Server interface {
+	Subscribe(topic string, browser Peer)
+	Drop(topic string, browser Peer)
 	Publish(topic string, data []byte, more []byte)
 }
 type NewWebClient = func(monitor Server, peer Peer) (Peer, error)
 type webServer struct {
+	pmu       sync.Mutex
 	mu        sync.Mutex
-	channel   map[string]*WebChannel
+	topic     map[string]*WebChannel
 	opt       *Options
 	WriteHome string
 	Url       string
 	CertPem   string
 	KeyPem    string
+}
+
+// Drop implements Server
+func (s *webServer) Drop(topic string, browser Peer) {
+	s.pmu.Lock()
+	defer s.pmu.Unlock()
+	s.topic[topic].listen[browser] = false
+}
+func (s *webServer) DropAll(browser Peer) {
+	s.pmu.Lock()
+	defer s.pmu.Unlock()
+	for _, k := range s.topic {
+		k.listen[browser] = false
+	}
+}
+
+// Subscribe implements Server
+func (s *webServer) Subscribe(topic string, browser Peer) {
+	s.pmu.Lock()
+	defer s.pmu.Unlock()
+	ch, ok := s.topic[topic]
+	if !ok {
+		ch = &WebChannel{
+			listen: map[Peer]bool{},
+		}
+		s.topic[topic] = ch
+	}
+	ch.listen[browser] = true
+
 }
 
 var _ Server = (*webServer)(nil)
@@ -33,12 +64,12 @@ var _ Server = (*webServer)(nil)
 func (s *webServer) Publish(topic string, data []byte, more []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	ch, ok := s.channel[topic]
+	ch, ok := s.topic[topic]
 	if !ok {
 		return
 	}
 	for k := range ch.listen {
-		k.Notify(topic, data, more)
+		k.Rpc(topic, data, more)
 	}
 }
 
@@ -62,19 +93,18 @@ type Peer interface {
 	// json, cbor, arrow
 	// {json rpc}\0binary
 	// if first character is 0 then begin with cbor
-	io.Closer
+	//io.Closer
 	Rpc(method string, params []byte, data []byte) (any, []byte, error)
-	Notify(method string, params []byte, data []byte)
+	//Notify(method string, params []byte, data []byte)
 }
 
 // wrapper for websocket, should we make generic?
 type Client struct {
-	id        string
-	conn      *websocket.Conn
-	open      []string
-	writable  []uint8     // 1 = writable, 2=subscribed
-	send      chan []byte // update a batch of logs
-	subscribe map[string]bool
+	id       string
+	conn     *websocket.Conn
+	open     []string
+	writable []uint8     // 1 = writable, 2=subscribed
+	send     chan []byte // update a batch of logs
 }
 
 var _ Peer = (*Client)(nil)
@@ -105,10 +135,7 @@ func (c *Client) Close() error {
 	// remove any subscriptions associated with it.
 	server.mu.Lock()
 	defer server.mu.Unlock()
-	for k := range c.subscribe {
-		m := server.channel[k]
-		delete(m.listen, c)
-	}
+	server.DropAll(c)
 
 	c.conn.Close()
 	return nil
@@ -116,5 +143,12 @@ func (c *Client) Close() error {
 
 // global state.
 var server = &webServer{
-	channel: map[string]*WebChannel{},
+	pmu:       sync.Mutex{},
+	mu:        sync.Mutex{},
+	topic:     map[string]*WebChannel{},
+	opt:       &Options{},
+	WriteHome: "",
+	Url:       "",
+	CertPem:   "",
+	KeyPem:    "",
 }
