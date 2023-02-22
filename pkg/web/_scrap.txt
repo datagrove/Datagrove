@@ -1,0 +1,36 @@
+
+	/*
+	session, _ := store.Get(r, "_")
+	if session.ID == "" {
+		session.ID = strings.TrimRight(base32.StdEncoding.EncodeToString(
+			securecookie.GenerateRandomKey(32)), "=")
+		err := store.Save(r, w, session)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+	}
+	*/
+
+	return 
+
+	path := filepath.Join(h.staticPath, r.URL.Path)
+	// this is a waste if the last character is / since it will never exist as a file
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		// this serves the index file if the file we are looking for
+		// doesn't existads
+		http.ServeFile(w, r, filepath.Join(h.staticPath, h.indexPath))
+		return
+	} else if err != nil {
+		//log.Printf("\nfile missing %s,%s", path, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if filepath.Ext(path) == ".js" {
+		w.Header().Add("Content-type", "application/javascript")
+	}
+	// this serves the file if it does exist.
+	//log.Printf("\nserving file %s", h.staticPath)
+	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)

@@ -2,6 +2,7 @@ package web
 
 // opinionated web core for dg projects.
 import (
+	"embed"
 	"encoding/base32"
 	"encoding/json"
 	"io/ioutil"
@@ -11,7 +12,6 @@ import (
 	"log"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/browser"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
-	"github.com/spf13/cobra"
 )
 
 // each app is going to have some shared state and some client state, and potentially some cluster/consensus state
@@ -69,43 +68,26 @@ var store = sessions.NewCookieStore(SECURE_KEY)
 type spaHandler struct {
 	staticPath string
 	indexPath  string
+	fs         embed.FS
 }
 
 var ErrSsh = fmt.Errorf("ssh error")
 
 // a static file handler for SPA
 func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "_")
-	if session.ID == "" {
-		session.ID = strings.TrimRight(base32.StdEncoding.EncodeToString(
-			securecookie.GenerateRandomKey(32)), "=")
-		err := store.Save(r, w, session)
+	path := "dist" + r.URL.Path
+	f, err := h.fs.Open(path)
+	contentType := mime.TypeByExtension(filepath.Ext(r.URL.Path))
+	if err != nil {
+		f, err = h.fs.Open("dist/index.html")
 		if err != nil {
-			log.Println(err)
-			return
+			panic("no index.html embedded")
 		}
+		contentType = "text/html"
 	}
 
-	path := filepath.Join(h.staticPath, r.URL.Path)
-	// this is a waste if the last character is / since it will never exist as a file
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		// this serves the index file if the file we are looking for
-		// doesn't existads
-		http.ServeFile(w, r, filepath.Join(h.staticPath, h.indexPath))
-		return
-	} else if err != nil {
-		//log.Printf("\nfile missing %s,%s", path, err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if filepath.Ext(path) == ".js" {
-		w.Header().Add("Content-type", "application/javascript")
-	}
-	// this serves the file if it does exist.
-	//log.Printf("\nserving file %s", h.staticPath)
-	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)
+	w.Header().Set("Content-Type", contentType)
+	io.Copy(w, f)
 }
 
 type Config struct {
@@ -117,15 +99,20 @@ type Config struct {
 
 type Configure = func(data []byte) error
 
-func Run(new NewWebClient, cmd *cobra.Command, args []string, configure Configure) {
-	mydir, _ := os.Getwd()
-	if len(args) > 0 {
-		mydir = args[0]
-	}
-	server.onConnect = new
-	server.Home = mydir
+type Options struct {
+	Home      string
+	New       NewWebClient
+	Configure Configure
+	Fs        embed.FS
+	Port      int
+}
 
-	guest, _ := new(server, nil)
+// how do we get flags from cobra command? compose?
+func Run(opt *Options) {
+	server.opt = opt
+	server.Url = fmt.Sprintf(":%d", opt.Port)
+
+	guest, _ := opt.New(server, nil)
 
 	mime.AddExtensionType(".js", "application/javascript")
 	r := mux.NewRouter()
@@ -156,7 +143,11 @@ func Run(new NewWebClient, cmd *cobra.Command, args []string, configure Configur
 		serveWrite(w, r)
 	})
 
-	spa := spaHandler{staticPath: server.Home, indexPath: filepath.Join(server.Home, "index.html")}
+	spa := spaHandler{
+		staticPath: opt.Home,
+		indexPath:  filepath.Join(opt.Home, "index.html"),
+		fs:         opt.Fs,
+	}
 	r.PathPrefix("/").Handler(spa)
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -164,7 +155,7 @@ func Run(new NewWebClient, cmd *cobra.Command, args []string, configure Configur
 	})
 	r2 := c.Handler(r)
 
-	if false {
+	if true {
 		err := browser.OpenURL("http://localhost" + server.Url)
 		if err != nil {
 			log.Print(err)
@@ -250,7 +241,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		send:     make(chan []byte, 256),
 	}
 
-	c2, _ := server.onConnect(server, c)
+	c2, _ := server.opt.New(server, c)
 	go func() {
 		// this defer will make sure that the ssh is closed when the websocket
 		// is closed

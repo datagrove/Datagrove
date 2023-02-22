@@ -20,8 +20,7 @@ type NewWebClient = func(monitor Server, peer Peer) (Peer, error)
 type webServer struct {
 	mu        sync.Mutex
 	channel   map[string]*WebChannel
-	onConnect NewWebClient
-	Home      string
+	opt       *Options
 	WriteHome string
 	Url       string
 	CertPem   string

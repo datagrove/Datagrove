@@ -12,9 +12,9 @@ import (
 // based on an active websocket connection to the web front end
 type CheckoutClient struct {
 	// what do I need to
-	deli    *DbDeli
-	server  web.Server
-	browser web.Peer
+	Deli    *DbDeli
+	Server  web.Server
+	Browser web.Peer
 }
 
 var _ web.Peer = (*CheckoutClient)(nil)
@@ -87,6 +87,6 @@ func (s *CheckoutClient) Rpc(method string, params []byte, data []byte) (any, []
 		})
 	}
 	b, _ := json.Marshal(a)
-	s.server.Publish(v.Sku, b, nil)
+	s.Server.Publish(v.Sku, b, nil)
 	return &result, nil, err
 }
