@@ -1,0 +1,30 @@
+{
+  "name": "dbdeli",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/datagrove/dbdeli.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/datagrove/dbdeli/issues"
+  },
+  "homepage": "https://github.com/datagrove/dbdeli#readme",
+  "dependencies": {
+    "go-npm": "^0.1.9"
+  },
+  "postinstall": "go-npm install",
+  "preuninstall": "go-npm uninstall",
+  "goBinary": {
+    "name": "command-name",
+    "path": "./bin",
+    "url": "https://github.com/user/my-go-package/releases/download/v{{version}}/myGoPackage_{{version}}_{{platform}}_{{arch}}.tar.gz"
+  }
+}
