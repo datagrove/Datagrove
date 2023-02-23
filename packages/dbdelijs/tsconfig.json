@@ -1,6 +1,5 @@
-{ 
+{
   "compilerOptions": {
-    
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -12,5 +11,12 @@
     "strict": true,
     "baseUrl": "./",
     "noEmit": true
-  }
+  },
+  "includes": [
+    "src/*.tsx,*.ts",
+  ],
+  "exclude": [
+    "node_modules/**",
+    "**/*.spec.ts"
+  ]
 }

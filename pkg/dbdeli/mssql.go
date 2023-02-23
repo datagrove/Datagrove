@@ -3,24 +3,47 @@ package dbdeli
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
 
 	_ "github.com/microsoft/go-mssqldb"
 )
 
 type Dbp interface {
+	io.Closer
 	Create(backup string, db string, filedir string) error
 	Restore(db string) error
 }
-
+type Driver struct {
+	Server   string `json:"server,omitempty"`
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
+	Port     int    `json:"port,omitempty"`
+}
 type DbpBase struct {
 }
 type DbpMssql struct {
-	*sql.DB
+	*Driver
+	db *sql.DB
 }
 
+// Close implements Dbp
+func (s *DbpMssql) Close() error {
+	if s.db == nil {
+		return nil
+	}
+	return s.db.Close()
+}
+
+var _ Dbp = (*DbpMssql)(nil)
+
 func (c *DbpMssql) Exec1(d string) error {
-	_, err := c.Exec(d)
+	db, e := c.Connect()
+	if e != nil {
+		return e
+	}
+
+	_, err := db.Exec(d)
 	if err != nil {
 		log.Print(err)
 		panic(err)
@@ -50,24 +73,40 @@ func (c *DbpMssql) Snapshot(db string) error {
 
 var _ Dbp = (*DbpMssql)(nil)
 
-func NewDbpMssql(server, user, password string, port int) (*DbpMssql, error) {
-	connString := fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d", server, user, password, port)
-	conn, err := sql.Open("mssql", connString)
-	if err != nil {
-		return nil, err
+func NewMsSql(d *Driver) *DbpMssql {
+	if d == nil {
+		d = &Driver{
+			User: "sa", Password: "dsa", Server: "localhost", Port: 1433,
+		}
 	}
 	return &DbpMssql{
-		conn,
-	}, nil
+		Driver: d,
+		db:     nil,
+	}
 }
 
-func (c *DbpMssql) Disconnect(db string) {
+func (d *DbpMssql) Connect() (*sql.DB, error) {
+	connString := fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d", d.Server, d.User, d.Password, d.Port)
+	var err error
+	if d.db != nil {
+		return d.db, nil
+	}
+	d.db, err = sql.Open("mssql", connString)
+
+	if err != nil {
+		return nil, err
+	} else {
+		return d.db, nil
+	}
+}
+
+func (c *DbpMssql) Disconnect(db string) error {
 	var s = fmt.Sprintf(`DECLARE @SQL varchar(max)
 	SELECT @SQL = COALESCE(@SQL,'') + 'Kill ' + Convert(varchar, SPId) + ';'
 			FROM MASTER..SysProcesses
 			WHERE DBId = DB_ID('%s') AND SPId <> @@SPId
 	EXEC(@SQL)`, db)
-	c.Exec1(s)
+	return c.Exec1(s)
 }
 
 func (c *DbpMssql) Restore(db string) error {

@@ -14,56 +14,56 @@ import { Rpc, RpcInterface } from '../../drpc/src/index'
 
 export const buttonCss = "mr-2 inline-flex items-center rounded border border-transparent bg-sky-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-neutral-200"
 export const Button: Component<{ class?: string, onClick: () => void, children: JSXElement }> = (props) => {
-    return <button class={`${props.class} ${buttonCss}`} onClick={props.onClick}>{props.children}</button>
-  }
-  export const SmallButton: Component<{ onClick: () => void, children: JSXElement }> = (props) => {
-    return <a class="mr-2 cursor-pointer inline-flex items-center  text-sky-800 px-2.5 py-1.5  font-medium rounded-md  hover:underline " onClick={props.onClick}>{props.children}</a>
-  }
-  export const DownloadText: Component<{ text: string, children: JSXElement }> = (props) => {
-    var blob = new Blob([props.text], { type: 'text/plain' });
-    let textFile = window.URL.createObjectURL(blob);
-    return <a download >{props.children}</a>
-  }
+  return <button class={`${props.class} ${buttonCss}`} onClick={props.onClick}>{props.children}</button>
+}
+export const SmallButton: Component<{ onClick: () => void, children: JSXElement }> = (props) => {
+  return <a class="mr-2 cursor-pointer inline-flex items-center  text-sky-800 px-2.5 py-1.5  font-medium rounded-md  hover:underline " onClick={props.onClick}>{props.children}</a>
+}
+export const DownloadText: Component<{ text: string, children: JSXElement }> = (props) => {
+  var blob = new Blob([props.text], { type: 'text/plain' });
+  let textFile = window.URL.createObjectURL(blob);
+  return <a download >{props.children}</a>
+}
 
 
 type SharedState = {
-	//options: {}
-	sku: {
-		[key: string]:ConfigureSku
-	}
-	reservation: {
-		[key: string]:Reservation
-	}
+  //options: {}
+  sku: {
+    [key: string]: ConfigureSku
+  }
+  reservation: {
+    [key: string]: Reservation
+  }
 }
 type Reservation = {
-	sku: string
-	ticket: number
-	description: string
+  sku: string
+  ticket: number
+  description: string
 }
 type ConfigureSku = {
-	limit: number
-	database: string
-	databaseType: string
+  limit: number
+  database: string
+  databaseType: string
 }
 
 export const [shared, setShared] = createSignal<SharedState>({
-  sku:{},
-  reservation:{}
+  sku: {},
+  reservation: {}
 })
 
 
 //  each database is going to be on a channel, so this has to change.
 const rpc = new Rpc({
-  onmessage: (s: RpcInterface)=>{
+  onmessage: (s: RpcInterface) => {
     console.log("onmessage", s)
-    switch(s.method){
-    // update is only one sku at a time, maybe it should be a lease at time?
-    // not clear then how to send first update. we could just send all the skus and source them.
-    case 'update':
-      setShared(s.params)
-      break
-    // case 'config':
-    //   setConfig(s.params)
+    switch (s.method) {
+      // update is only one sku at a time, maybe it should be a lease at time?
+      // not clear then how to send first update. we could just send all the skus and source them.
+      case 'update':
+        setShared(s.params)
+        break
+      // case 'config':
+      //   setConfig(s.params)
     }
   }
 })
@@ -71,85 +71,85 @@ const rpc = new Rpc({
 
 
 
-const inputCss ="mr-2 border-2 p-1 rounded-md border-sky-800 opacity-100"
+const inputCss = "mr-2 border-2 p-1 rounded-md border-sky-800 opacity-100"
 
-const ServerLock : Component<{}> = (props)=>{
+const ServerLock: Component<{}> = (props) => {
   let descInput: HTMLInputElement
-  let pickSku: HTMLSelectElement 
-  const canReserve = ()=>descInput?.value 
-  const skuList = ():string[] => Object.keys(shared().sku)  
+  let pickSku: HTMLSelectElement
+  const canReserve = () => descInput?.value
+  const skuList = (): string[] => Object.keys(shared().sku)
 
-  const rsv  = ()=>{
-    console.log("sel", pickSku,pickSku?.value, descInput?.value)
+  const rsv = () => {
+    console.log("sel", pickSku, pickSku?.value, descInput?.value)
     rpc.ask('reserve', {
       sku: pickSku?.value,
       description: descInput?.value
     })
   }
   return <div class='mt-2'>
-  <label for="desc" class="block font-medium text-gray-700">Lock a server</label>
+    <label for="desc" class="block font-medium text-gray-700">Lock a server</label>
 
-  <div class='mt-1' >
-    <div class='flex flex-row'>
-      <select ref={pickSku!} class='mr-2'>
-        <For each={ skuList()}>{(e,i)=>{
-          return <option value={e}>{e}</option>
-        }}</For>
-      </select>
-      <input ref={descInput!} class="mr-2 border-2 p-1 rounded-md border-sky-800 opacity-100'" autofocus name='desc' type='text' placeholder='Reservation notice'></input>
-      <button class={buttonCss}  onClick={rsv}>Reserve</button>
-    </div>
-  </div></div>
+    <div class='mt-1' >
+      <div class='flex flex-row'>
+        <select ref={pickSku!} class='mr-2'>
+          <For each={skuList()}>{(e, i) => {
+            return <option value={e}>{e}</option>
+          }}</For>
+        </select>
+        <input ref={descInput!} class="mr-2 border-2 p-1 rounded-md border-sky-800 opacity-100'" autofocus name='desc' type='text' placeholder='Reservation notice'></input>
+        <button class={buttonCss} onClick={rsv}>Reserve</button>
+      </div>
+    </div></div>
 
 }
-const AddDatabase: Component<{}> = (props)=>{
+const AddDatabase: Component<{}> = (props) => {
   let sku: HTMLInputElement
   let limit: HTMLInputElement
-  let database:  HTMLInputElement
+  let database: HTMLInputElement
   return <div>      <div class='flex flex-row'>
-  <label for="sku" class="block font-medium text-gray-700">Name</label>, 
-    <label for="limit" class="block font-medium text-gray-700">Limit</label>, 
+    <label for="sku" class="block font-medium text-gray-700">Name</label>,
+    <label for="limit" class="block font-medium text-gray-700">Limit</label>,
     <label for="file" class="block font-medium text-gray-700">Database file</label>
-</div>
-<div class='flex flex-row'>
-<input class={inputCss} name='sku' placeholder='Name'  />
-<input class={inputCss+" w-16"} name='limit' type='number' value='100'  />
-<input class={inputCss} name='file' type='file' placeholder='database'/>
-</div></div>
+  </div>
+    <div class='flex flex-row'>
+      <input class={inputCss} name='sku' placeholder='Name' />
+      <input class={inputCss + " w-16"} name='limit' type='number' value='100' />
+      <input class={inputCss} name='file' type='file' placeholder='database' />
+    </div></div>
 }
-const DatabaseList: Component<{}> = (props)=>{
+const DatabaseList: Component<{}> = (props) => {
   const serverList = () => Object.entries(shared().sku)
-  return <div class='mt-2'> 
-      <h2 class='mt-2'>Databases  </h2>
-      <table>
+  return <div class='mt-2'>
+    <h2 class='mt-2'>Databases  </h2>
+    <table>
       <For each={serverList()} >{(e) => {
         return <tr>
           <td>{e[0]}</td>
           <td>{e[1].limit}</td>
           <td>{e[1].database}</td>
-          </tr>
+        </tr>
       }}</For>
-      </table>
-   </div>
+    </table>
+  </div>
 }
 // dashboard for one database sku
-const Dashboard : Component<{}> = (props) => {
+const Dashboard: Component<{}> = (props) => {
   const release = async (sku: string, id: number) => {
     rpc.ask('release', {
       sku: sku,
       ticket: id
     })
   }
-  const reservations = ()=>Object.values(shared().reservation)
+  const reservations = () => Object.values(shared().reservation)
   return (
     <main class="mx-auto text-gray-700 p-4">
-      <AddDatabase/>
-      <DatabaseList/>
-      <ServerLock/>
+
+      <DatabaseList />
+      <ServerLock />
       <table class='mt-4'>
         <For each={reservations()} >{(e) => {
           return <tr><td>{e.sku}</td><td>{e.description} <span class='text-neutral-400'>(#{e.ticket})</span></td>
-            <td><SmallButton onClick={() => release(e.sku,e.ticket)}>Release</SmallButton></td>
+            <td><SmallButton onClick={() => release(e.sku, e.ticket)}>Release</SmallButton></td>
           </tr>
         }
 
@@ -190,7 +190,7 @@ export function Root() {
           </ul>
         </nav>
         <Routes>
-          <Route path="/" component={()=><Dashboard/>} />
+          <Route path="/" component={() => <Dashboard />} />
 
 
         </Routes>
@@ -203,4 +203,3 @@ render(() => <Router><Root /></Router>, document.getElementById("app")!);
 
 
 
-  

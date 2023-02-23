@@ -5,7 +5,11 @@ import (
 	"testing"
 )
 
-func Test_main(t *testing.T) {
-	os.Args = []string{"one", "start"}
+func Test_start(t *testing.T) {
+	os.Args = []string{"one", "start", "example"}
+	main()
+}
+func Test_build(t *testing.T) {
+	os.Args = []string{"one", "build", "example"}
 	main()
 }

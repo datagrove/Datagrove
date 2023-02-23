@@ -1,17 +1,21 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"sync"
 
+	"github.com/datagrove/datagrove/pkg/dbdeli"
 	"github.com/datagrove/datagrove/pkg/web"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -25,12 +29,27 @@ func main() {
 		Use: "dbdeli [sub]",
 	}
 
-	rootCmd.AddCommand(New())
+	rootCmd.AddCommand(start())
+	rootCmd.AddCommand(build())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+func build() *cobra.Command {
+	r := &cobra.Command{
+		Use: "build [dir]",
+		Run: func(cmd *cobra.Command, args []string) {
+			mydir, _ := os.Getwd()
+			if len(args) > 1 {
+				mydir = args[1]
+			}
+			app := NewDbDeli(mydir)
+			app.Build()
+		},
+	}
+	return r
 }
 
 // load the configuration from the opt.home, watch and reconfigure if the file changes.
@@ -38,7 +57,7 @@ func main() {
 
 // move back to cmd? if composing command app belongs here though
 // embed the
-func New() *cobra.Command {
+func start() *cobra.Command {
 	port := 5174
 	r := &cobra.Command{
 		Use: "start [dir]",
@@ -92,10 +111,10 @@ func New() *cobra.Command {
 
 // state that is shared with the browser
 type SharedState struct {
-	Options     DbDeliOptions           `json:"options"`
-	Sku         map[string]ConfigureSku `json:"sku"`
-	Reservation map[string]Reservation  `json:"reservation"`
-	Drivers     []string                `json:"drivers"`
+	Options     DbDeliOptions             `json:"options"`
+	Sku         map[string]ConfigureSku   `json:"sku"`
+	Reservation map[string]Reservation    `json:"reservation"`
+	Drivers     map[string]*dbdeli.Driver `json:"drivers"`
 }
 
 // not used; global options (not sku options)
@@ -117,9 +136,14 @@ type ConfigureSku struct {
 
 // server state.
 type DbDeli struct {
-	State SharedState
-	Mu    sync.Mutex
-	Home  string
+	State   SharedState
+	Mu      sync.Mutex
+	Home    string
+	Sku     map[string]*SkuState
+	Drivers map[string]dbdeli.Dbp
+}
+type SkuState struct {
+	sem *semaphore.Weighted // semaphore.NewWeighted(int64(10))
 }
 
 // not used currently
@@ -131,6 +155,19 @@ func (d *DbDeli) Configure(m []byte) error {
 	d.Mu.Unlock()
 	return nil
 }
+func (d *DbDeli) Build() {
+	for name, x := range d.State.Sku {
+		drv, ok := d.Drivers[x.DatabaseType]
+		if !ok {
+			log.Fatalf("Unknown dbms %s", x.DatabaseType)
+		}
+		for i := 0; i < x.Limit; i++ {
+			backup := path.Join(d.Home, name+".bak")
+			db := fmt.Sprintf("%s_%d", name, i)
+			drv.Create(backup, db, d.Home)
+		}
+	}
+}
 
 // we can load and then watch the configuration file for changes
 // should we use cobra for this?
@@ -140,12 +177,22 @@ func NewDbDeli(home string) *DbDeli {
 	b, _ := os.ReadFile(path.Join(home, "shared.json"))
 	v.Reservation = map[string]Reservation{}
 	json.Unmarshal(b, &v)
-	v.Drivers = []string{"mssql"}
-	return &DbDeli{
-		Home:  home,
+
+	r := &DbDeli{
 		State: v,
 		Mu:    sync.Mutex{},
+		Home:  home,
+		Sku:   map[string]*SkuState{},
+		Drivers: map[string]dbdeli.Dbp{
+			"mssql": dbdeli.NewMsSql(v.Drivers["mssql"]),
+		},
 	}
+	for k, x := range v.Sku {
+		r.Sku[k] = &SkuState{
+			sem: semaphore.NewWeighted(int64(x.Limit)),
+		}
+	}
+	return r
 }
 
 // uses datagrove basic web app.
@@ -178,9 +225,18 @@ func (s *CheckoutClient) Rpc(method string, params []byte, data []byte) (any, []
 	release := func(sku string, ticket int) {
 		leaseKey := fmt.Sprintf("%s~%d", v.Sku, v.Ticket)
 		delete(s.Deli.State.Reservation, leaseKey)
+		if cg, ok := s.Deli.Sku[sku]; ok {
+			cg.sem.Release(1)
+		}
 	}
 	reserve := func(sku string, desc string) int {
-		cf := s.Deli.State.Sku[sku]
+		cf, ok := s.Deli.State.Sku[sku]
+		if !ok {
+			return -1
+		}
+		cg := s.Deli.Sku[sku]
+		ctx := context.Background()
+		cg.sem.Acquire(ctx, 1)
 		for i := 0; i < cf.Limit; i++ {
 			leaseKey := fmt.Sprintf("%s~%d", v.Sku, i)
 			if _, ok := s.Deli.State.Reservation[leaseKey]; !ok {

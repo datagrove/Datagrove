@@ -30,10 +30,7 @@ func Test_sql(t *testing.T) {
 const COUNT = 3
 
 func Test_create(t *testing.T) {
-	s, err := NewDbpMssql("localhost", "sa", "dsa", 1433)
-	if err != nil {
-		panic(err)
-	}
+	s := NewMsSql(nil)
 	defer s.Close()
 	for x := 0; x < COUNT; x++ {
 		var df = "d:\\db"
@@ -53,12 +50,15 @@ func Test_copy(t *testing.T) {
 		}
 	}
 }
+func ordie(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
 
 func Test_disconnect(t *testing.T) {
-	s, err := NewDbpMssql("localhost", "sa", "dsa", 1433)
-	if err != nil {
-		panic(err)
-	}
-	s.Disconnect("iMISMain10_0")
-	s.Restore("iMISMain10_0")
+	s := NewMsSql(nil)
+
+	ordie(s.Disconnect("iMISMain10_0"))
+	ordie(s.Restore("iMISMain10_0"))
 }
