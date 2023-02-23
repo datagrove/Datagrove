@@ -37,6 +37,20 @@ func (s *DbpMssql) Close() error {
 
 var _ Dbp = (*DbpMssql)(nil)
 
+func (c *DbpMssql) Query(d string) error {
+	db, e := c.Connect()
+	if e != nil {
+		return e
+	}
+
+	rows, err := db.Query(d)
+	var strrow string
+	for rows.Next() {
+		err = rows.Scan(&strrow)
+	}
+
+	return err
+}
 func (c *DbpMssql) Exec1(d string) error {
 	db, e := c.Connect()
 	if e != nil {
@@ -56,8 +70,51 @@ func (c *DbpMssql) Backup(db string) error {
 	return c.Exec1(cmd)
 }
 
+type LogicalFile struct {
+	name string
+	kind string
+}
+
+func (c *DbpMssql) DescribeBackup(f string) ([]LogicalFile, error) {
+	cmd := fmt.Sprintf("RESTORE FILELISTONLY FROM DISK = '%s'", f)
+	db, e := c.Connect()
+	if e != nil {
+		return nil, e
+	}
+	rows, err := db.Query(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	var columns []string
+	columns, err = rows.Columns()
+
+	colNum := len(columns)
+
+	cols := make([]interface{}, colNum)
+	colp := make([]*string, colNum)
+	for i := range colp {
+		cols[i] = new(sql.NullString)
+	}
+
+	x := []LogicalFile{}
+	for rows.Next() {
+		err = rows.Scan(cols...)
+		name := cols[0].(*sql.NullString)
+		kind := (cols[2]).(*sql.NullString)
+		x = append(x, LogicalFile{name: name.String, kind: kind.String})
+	}
+
+	return x, err
+}
+
 // Create implements Dbp
 func (c *DbpMssql) Create(backup string, db string, filedir string) error {
+	x, e := c.DescribeBackup(backup)
+	if e != nil {
+		return e
+	}
+	_ = x
 	c.Drop(db + "_ss")
 	c.Drop(db)
 	var dbfile = filedir + "\\" + db + ".mdf"
