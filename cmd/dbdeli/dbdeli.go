@@ -131,6 +131,7 @@ type Reservation struct {
 type ConfigureSku struct {
 	Limit        int    `json:"limit,omitempty"`
 	Database     string `json:"database,omitempty"`
+	Backup       string `json:"backup,omitempty"`
 	DatabaseType string `json:"database_type,omitempty"`
 }
 

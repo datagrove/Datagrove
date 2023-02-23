@@ -51,6 +51,11 @@ func (c *DbpMssql) Exec1(d string) error {
 	return err
 }
 
+func (c *DbpMssql) Backup(db string) error {
+	cmd := fmt.Sprintf("BACKUP DATABASE %s TO DISK = '/var/opt/mssql/backup/%s.bak'", db, db)
+	return c.Exec1(cmd)
+}
+
 // Create implements Dbp
 func (c *DbpMssql) Create(backup string, db string, filedir string) error {
 	c.Drop(db + "_ss")
