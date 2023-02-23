@@ -1,4 +1,4 @@
-package dbdeli
+package main
 
 import (
 	"database/sql"
@@ -110,19 +110,28 @@ func (c *DbpMssql) DescribeBackup(f string) ([]LogicalFile, error) {
 
 // Create implements Dbp
 func (c *DbpMssql) Create(backup string, db string, filedir string) error {
-	x, e := c.DescribeBackup(backup)
+	lf, e := c.DescribeBackup(backup)
 	if e != nil {
 		return e
 	}
-	_ = x
+
 	c.Drop(db + "_ss")
 	c.Drop(db)
-	var dbfile = filedir + "\\" + db + ".mdf"
-	var logfile = filedir + "\\" + db + ".ldf"
 
+	ext := map[string]string{
+		"S": "",
+		"D": ".mdf",
+		"L": ".log",
+	}
+	s := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = N'%s' WITH", db, backup)
+	for _, o := range lf {
+		s += fmt.Sprintf(" Move N'%s' to N'%s',", o.name, filedir+"\\"+o.name+ext[o.kind])
+	}
+
+	s += " STATS=5"
 	//
-	c.Exec1(fmt.Sprintf("RESTORE DATABASE [%s] FROM  DISK = N'%s' WITH  FILE = 1,  MOVE N'iMISMain15' TO N'%s',  MOVE N'iMISMain15_log' TO N'%s',  NOUNLOAD,  STATS = 5", db, backup, dbfile, logfile))
-
+	// c.Exec1(fmt.Sprintf(WITH  FILE = 1,  MOVE N'iMISMain15' TO N'%s',  MOVE N'iMISMain15_log' TO N'%s',  NOUNLOAD,  STATS = 5", db, backup, dbfile, logfile))
+	c.Exec1(s)
 	return c.Snapshot(db)
 }
 
@@ -133,7 +142,7 @@ func (c *DbpMssql) Drop(db string) error {
 
 // Snapshot implements Dbp
 func (c *DbpMssql) Snapshot(db string) error {
-	return c.Exec1(fmt.Sprintf("CREATE DATABASE %s_ss ON  ( NAME = iMISMain15, FILENAME = 'd:\\db\\%s.ss' ) AS SNAPSHOT OF %s", db, db, db))
+	return c.Exec1(fmt.Sprintf("CREATE DATABASE %s_ss ON  ( NAME = snap, FILENAME = '/var/opt/mssql/%s.ss' ) AS SNAPSHOT OF %s", db, db, db))
 }
 
 var _ Dbp = (*DbpMssql)(nil)

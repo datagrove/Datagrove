@@ -22,7 +22,10 @@ func (d *DbDeli) Build() {
 		}
 		for i := 0; i < x.Limit; i++ {
 			db := fmt.Sprintf("%s_%d", name, i)
-			drv.Create("/var/opt/mssql/backup/"+name+".bak", db, "/var/opt/mssql")
+			e := drv.Create("/var/opt/mssql/backup/"+name+".bak", db, "/var/opt/mssql")
+			if e != nil {
+				log.Fatal(e)
+			}
 		}
 	}
 }

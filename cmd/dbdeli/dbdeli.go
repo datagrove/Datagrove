@@ -10,7 +10,6 @@ import (
 	"path"
 	"sync"
 
-	"github.com/datagrove/datagrove/pkg/dbdeli"
 	"github.com/datagrove/datagrove/pkg/web"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/joho/godotenv"
@@ -104,10 +103,10 @@ func start() *cobra.Command {
 
 // state that is shared with the browser
 type SharedState struct {
-	Options     DbDeliOptions             `json:"options"`
-	Sku         map[string]ConfigureSku   `json:"sku"`
-	Reservation map[string]Reservation    `json:"reservation"`
-	Db          map[string]*dbdeli.Driver `json:"db"`
+	Options     DbDeliOptions           `json:"options"`
+	Sku         map[string]ConfigureSku `json:"sku"`
+	Reservation map[string]Reservation  `json:"reservation"`
+	Db          map[string]*Driver      `json:"db"`
 }
 
 // not used; global options (not sku options)
@@ -134,7 +133,7 @@ type DbDeli struct {
 	Mu      sync.Mutex
 	Home    string
 	Sku     map[string]*SkuState
-	Drivers map[string]dbdeli.Dbp
+	Drivers map[string]Dbp
 }
 type SkuState struct {
 	sem *semaphore.Weighted // semaphore.NewWeighted(int64(10))
@@ -185,8 +184,8 @@ func NewDbDeli(home string) (*DbDeli, error) {
 		Mu:    sync.Mutex{},
 		Home:  home,
 		Sku:   map[string]*SkuState{},
-		Drivers: map[string]dbdeli.Dbp{
-			"mssql": dbdeli.NewMsSql(v.Db["mssql"]),
+		Drivers: map[string]Dbp{
+			"mssql": NewMsSql(v.Db["mssql"]),
 		},
 	}
 	for k, x := range v.Sku {
