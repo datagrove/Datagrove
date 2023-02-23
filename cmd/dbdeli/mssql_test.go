@@ -1,4 +1,4 @@
-package dbdeli
+package main
 
 import (
 	"database/sql"
