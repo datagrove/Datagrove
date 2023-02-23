@@ -62,7 +62,10 @@ func (c *DbpMssql) Create(backup string, db string, filedir string) error {
 	c.Drop(db)
 	var dbfile = filedir + "\\" + db + ".mdf"
 	var logfile = filedir + "\\" + db + ".ldf"
+
+	//
 	c.Exec1(fmt.Sprintf("RESTORE DATABASE [%s] FROM  DISK = N'%s' WITH  FILE = 1,  MOVE N'iMISMain15' TO N'%s',  MOVE N'iMISMain15_log' TO N'%s',  NOUNLOAD,  STATS = 5", db, backup, dbfile, logfile))
+
 	return c.Snapshot(db)
 }
 
