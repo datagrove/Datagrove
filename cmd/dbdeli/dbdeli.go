@@ -16,7 +16,11 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/semaphore"
+	//"github.com/xeipuuv/gojsonschema"
 )
+
+// compare jsonschema https://dev.to/vearutop/benchmarking-correctness-and-performance-of-go-json-schema-validators-3247
+// https://github.com/santhosh-tekuri/jsonschema
 
 var (
 	//go:embed dist
@@ -37,20 +41,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-func build() *cobra.Command {
-	r := &cobra.Command{
-		Use: "build [dir]",
-		Run: func(cmd *cobra.Command, args []string) {
-			mydir, _ := os.Getwd()
-			if len(args) > 1 {
-				mydir = args[1]
-			}
-			app := NewDbDeli(mydir)
-			app.Build()
-		},
-	}
-	return r
-}
 
 // load the configuration from the opt.home, watch and reconfigure if the file changes.
 // the web server can separately broadcast these out if configured to.
@@ -68,7 +58,10 @@ func start() *cobra.Command {
 				mydir = args[1]
 			}
 
-			app := NewDbDeli(mydir)
+			app, e := NewDbDeli(mydir)
+			if e != nil {
+				log.Fatal(e)
+			}
 
 			// called on each socket connection
 			// called once to create a guest connection
@@ -114,7 +107,7 @@ type SharedState struct {
 	Options     DbDeliOptions             `json:"options"`
 	Sku         map[string]ConfigureSku   `json:"sku"`
 	Reservation map[string]Reservation    `json:"reservation"`
-	Drivers     map[string]*dbdeli.Driver `json:"drivers"`
+	Db          map[string]*dbdeli.Driver `json:"db"`
 }
 
 // not used; global options (not sku options)
@@ -129,10 +122,10 @@ type Reservation struct {
 }
 
 type ConfigureSku struct {
-	Limit        int    `json:"limit,omitempty"`
-	Database     string `json:"database,omitempty"`
-	Backup       string `json:"backup,omitempty"`
-	DatabaseType string `json:"database_type,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
+	Database string `json:"database,omitempty"`
+	Backup   string `json:"backup,omitempty"`
+	Db       string `json:"db,omitempty"`
 }
 
 // server state.
@@ -156,28 +149,36 @@ func (d *DbDeli) Configure(m []byte) error {
 	d.Mu.Unlock()
 	return nil
 }
-func (d *DbDeli) Build() {
-	for name, x := range d.State.Sku {
-		drv, ok := d.Drivers[x.DatabaseType]
-		if !ok {
-			log.Fatalf("Unknown dbms %s", x.DatabaseType)
-		}
-		for i := 0; i < x.Limit; i++ {
-			backup := path.Join(d.Home, name+".bak")
-			db := fmt.Sprintf("%s_%d", name, i)
-			drv.Create(backup, db, d.Home)
-		}
-	}
-}
 
 // we can load and then watch the configuration file for changes
 // should we use cobra for this?
-func NewDbDeli(home string) *DbDeli {
+// main error here is no config file,
+func NewDbDeli(home string) (*DbDeli, error) {
 	// read the current shared state.
 	var v SharedState
-	b, _ := os.ReadFile(path.Join(home, "shared.json"))
+	b, e := os.ReadFile(path.Join(home, "shared.json"))
+	if e != nil {
+		return nil, e
+	}
 	v.Reservation = map[string]Reservation{}
 	json.Unmarshal(b, &v)
+
+	// we should syntax check our json here!
+	// schemaLoader := gojsonschema.NewReferenceLoader("file:///home/me/schema.json")
+
+	// result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+
+	// if result.Valid() {
+	// 	fmt.Printf("The document is valid\n")
+	// } else {
+	// 	fmt.Printf("The document is not valid. see errors :\n")
+	// 	for _, desc := range result.Errors() {
+	// 		fmt.Printf("- %s\n", desc)
+	// 	}
+	// }
 
 	r := &DbDeli{
 		State: v,
@@ -185,7 +186,7 @@ func NewDbDeli(home string) *DbDeli {
 		Home:  home,
 		Sku:   map[string]*SkuState{},
 		Drivers: map[string]dbdeli.Dbp{
-			"mssql": dbdeli.NewMsSql(v.Drivers["mssql"]),
+			"mssql": dbdeli.NewMsSql(v.Db["mssql"]),
 		},
 	}
 	for k, x := range v.Sku {
@@ -193,7 +194,7 @@ func NewDbDeli(home string) *DbDeli {
 			sem: semaphore.NewWeighted(int64(x.Limit)),
 		}
 	}
-	return r
+	return r, nil
 }
 
 // uses datagrove basic web app.

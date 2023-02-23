@@ -2,8 +2,16 @@
     "sku": {
         "v10": {
             "limit": 3,
-            "database": "test",
-            "databaseType": "mssql"
+            "backup": "wwi.bak",
+            "db": "mssql"
+        }
+    },
+    "db": {
+        "mssql": {
+            "server": "localhost",
+            "port": 1433,
+            "user": "sa",
+            "password": "Winter2023_"
         }
     }
 }

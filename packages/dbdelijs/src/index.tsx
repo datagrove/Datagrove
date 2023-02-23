@@ -33,6 +33,9 @@ type SharedState = {
   }
   reservation: {
     [key: string]: Reservation
+  },
+  db: {
+    [key: string]: Db
   }
 }
 type Reservation = {
@@ -43,12 +46,19 @@ type Reservation = {
 type ConfigureSku = {
   limit: number
   database: string
-  databaseType: string
+  db: string
+}
+type Db = {
+  user: string,
+  password: string,
+  server: string,
+  port: number
 }
 
 export const [shared, setShared] = createSignal<SharedState>({
   sku: {},
-  reservation: {}
+  reservation: {},
+  db:{}
 })
 
 
