@@ -125,24 +125,30 @@ func (c *DbpMssql) Create(backup string, db string, filedir string) error {
 	}
 	s := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = N'%s' WITH", db, backup)
 	for _, o := range lf {
-		s += fmt.Sprintf(" Move N'%s' to N'%s',", o.name, filedir+"\\"+o.name+ext[o.kind])
+		s += fmt.Sprintf(" Move N'%s' to N'%s/%s_%s%s',", o.name, filedir, db, o.name, ext[o.kind])
 	}
 
 	s += " STATS=5"
 	//
 	// c.Exec1(fmt.Sprintf(WITH  FILE = 1,  MOVE N'iMISMain15' TO N'%s',  MOVE N'iMISMain15_log' TO N'%s',  NOUNLOAD,  STATS = 5", db, backup, dbfile, logfile))
 	c.Exec1(s)
-	return c.Snapshot(db)
+	// Snapshot implements Dbp
+
+	s = fmt.Sprintf("CREATE DATABASE %s_ss ON ", db)
+	for _, o := range lf {
+		if o.kind == "D" {
+			s += fmt.Sprintf("(NAME = %s,  FILENAME = '%s/%s_%s.ss'),", o.name, filedir, db, o.name)
+		}
+	}
+	s = s[0 : len(s)-1]
+	s += fmt.Sprintf(" AS SNAPSHOT OF %s", db)
+	return c.Exec1(s)
+
 }
 
 // Drop implements Dbp
 func (c *DbpMssql) Drop(db string) error {
 	return c.Exec1(fmt.Sprintf("drop database if exists %s", db))
-}
-
-// Snapshot implements Dbp
-func (c *DbpMssql) Snapshot(db string) error {
-	return c.Exec1(fmt.Sprintf("CREATE DATABASE %s_ss ON  ( NAME = snap, FILENAME = '/var/opt/mssql/%s.ss' ) AS SNAPSHOT OF %s", db, db, db))
 }
 
 var _ Dbp = (*DbpMssql)(nil)
@@ -184,7 +190,7 @@ func (c *DbpMssql) Disconnect(db string) error {
 }
 
 func (c *DbpMssql) Restore(db string) error {
-	c.Disconnect(db)
+	//c.Disconnect(db)
 	return c.Exec1(fmt.Sprintf("RESTORE DATABASE %s from DATABASE_SNAPSHOT = '%s_ss'", db, db))
 }
 

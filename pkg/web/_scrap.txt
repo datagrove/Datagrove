@@ -34,3 +34,20 @@
 	// this serves the file if it does exist.
 	//log.Printf("\nserving file %s", h.staticPath)
 	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)
+
+	was reply
+				if e != nil {
+				mb, _ := json.Marshal(&RpcReply{
+					Id:    m.Id,
+					Error: e.Error(),
+				})
+				c.send <- mb
+				return true
+			} else {
+				mbx, _ := json.Marshal(a)
+				mb, _ := json.Marshal(&RpcReply{
+					Id:     m.Id,
+					Result: mbx, // returns a channel, not used currently
+				})
+				c.send <- mb
+			}

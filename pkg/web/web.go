@@ -5,7 +5,6 @@ import (
 	"embed"
 	"encoding/base32"
 	"encoding/json"
-	"io/ioutil"
 
 	"fmt"
 	"io"
@@ -112,7 +111,7 @@ func Run(opt *Options) {
 	server.opt = opt
 	server.Url = fmt.Sprintf(":%d", opt.Port)
 
-	guest, _ := opt.New(server, nil)
+	opt.New(server, nil)
 
 	mime.AddExtensionType(".js", "application/javascript")
 	r := mux.NewRouter()
@@ -128,34 +127,34 @@ func Run(opt *Options) {
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(w, r)
 	})
-	r.HandleFunc("/json/{method}", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		method := vars["method"]
-		params := r.URL.Query().Get("p")
+	// r.HandleFunc("/json/{method}", func(w http.ResponseWriter, r *http.Request) {
+	// 	vars := mux.Vars(r)
+	// 	method := vars["method"]
+	// 	params := r.URL.Query().Get("p")
 
-		var a any
-		var b []byte
-		var c error
-		if len(params) > 0 {
-			a, b, c = guest.Rpc(method, []byte(params), nil)
-			if c != nil {
-				return
-			}
-		} else {
-			header, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				return
-			}
-			a, b, c = guest.Rpc(method, header, nil)
-			if c != nil {
-				return
-			}
-		}
-		_ = b
-		bx, _ := json.Marshal(a)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(bx)
-	})
+	// 	var a any
+	// 	var b []byte
+	// 	var c error
+	// 	if len(params) > 0 {
+	// 		a, b, c = guest.Rpc(method, []byte(params), nil,0)
+	// 		if c != nil {
+	// 			return
+	// 		}
+	// 	} else {
+	// 		header, err := ioutil.ReadAll(r.Body)
+	// 		if err != nil {
+	// 			return
+	// 		}
+	// 		a, b, c = guest.Rpc(method, header, nil)
+	// 		if c != nil {
+	// 			return
+	// 		}
+	// 	}
+	// 	_ = b
+	// 	bx, _ := json.Marshal(a)
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.Write(bx)
+	// })
 	r.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		serveFetch(w, r)
 	})
@@ -284,22 +283,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 				return false // breaks out of loop
 			}
 			json.Unmarshal(message, &m)
-			a, _, e := c2.Rpc(m.Method, m.Params, nil)
-			if e != nil {
-				mb, _ := json.Marshal(&RpcReply{
-					Id:    m.Id,
-					Error: e.Error(),
-				})
-				c.send <- mb
-				return true
-			} else {
-				mbx, _ := json.Marshal(a)
-				mb, _ := json.Marshal(&RpcReply{
-					Id:     m.Id,
-					Result: mbx, // returns a channel, not used currently
-				})
-				c.send <- mb
-			}
+			c2.Rpc(m.Method, m.Params, nil, m.Id)
 
 			return true
 		}

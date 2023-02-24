@@ -69,7 +69,7 @@ func (s *webServer) Publish(topic string, data []byte, more []byte) {
 		return
 	}
 	for k := range ch.listen {
-		k.Rpc(topic, data, more)
+		k.Rpc(topic, data, more, 0)
 	}
 }
 
@@ -94,7 +94,8 @@ type Peer interface {
 	// {json rpc}\0binary
 	// if first character is 0 then begin with cbor
 	//io.Closer
-	Rpc(method string, params []byte, data []byte) (any, []byte, error)
+	Rpc(method string, params []byte, data []byte, tag int64)
+	Reply(tag int64, result any, more []byte, err error)
 	//Notify(method string, params []byte, data []byte)
 }
 
@@ -119,15 +120,31 @@ func (c *Client) Notify(method string, params []byte, data []byte) {
 	c.send <- b
 }
 
+func (c *Client) Reply(tag int64, result any, more []byte, err error) {
+	if err == nil {
+		a, _ := json.Marshal(result)
+		b, _ := json.Marshal(&RpcReply{
+			Id:     tag,
+			Result: a,
+		})
+		c.send <- b
+	} else {
+		b, _ := json.Marshal(&RpcReply{
+			Id:    tag,
+			Error: err.Error(),
+		})
+		c.send <- b
+	}
+}
+
 // Rpc implements Peer
-func (c *Client) Rpc(method string, params []byte, data []byte) (any, []byte, error) {
+func (c *Client) Rpc(method string, params []byte, data []byte, tag int64) {
 	b, _ := json.Marshal(&Rpc{
 		Method: method,
-		Id:     0,
+		Id:     tag,
 		Params: params,
 	})
 	c.send <- b
-	return nil, nil, nil
 }
 
 func (c *Client) Close() error {

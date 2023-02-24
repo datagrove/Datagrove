@@ -13,7 +13,7 @@ wget -O example/wwi.bak https://github.com/Microsoft/sql-server-samples/releases
 copy the backup file into the container (automate this?)
 ```
 docker exec -it sql1 mkdir /var/opt/mssql/backup
-sudo docker cp example/wwi.bak sql1:/var/opt/mssql/backup/v10.bak
+sudo docker cp example/AdventureWorksLT2019.bak sql1:/var/opt/mssql/backup/v10.bak
 docker exec -it sql1 ls /var/opt/mssql/backup
 
 sudo docker exec -it sql1 /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'Winter2023_'  -Q 'RESTORE FILELISTONLY FROM DISK = "/var/opt/mssql/backup/wwi.bak"' | tr -s ' ' | cut -d ' ' -f 1-2

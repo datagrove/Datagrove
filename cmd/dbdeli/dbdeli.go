@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/semaphore"
 	//"github.com/xeipuuv/gojsonschema"
 )
 
@@ -53,8 +51,8 @@ func start() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			// default to current directory or first fixed position
 			mydir, _ := os.Getwd()
-			if len(args) > 1 {
-				mydir = args[1]
+			if len(args) > 0 {
+				mydir = args[0]
 			}
 
 			app, e := NewDbDeli(mydir)
@@ -76,7 +74,7 @@ func start() *cobra.Command {
 				// a nil browser is http guest
 				if browser != nil {
 					spew.Dump(b)
-					browser.Rpc("update", b, nil)
+					browser.Rpc("update", b, nil, 0)
 				}
 				return r, nil
 			}
@@ -136,7 +134,7 @@ type DbDeli struct {
 	Drivers map[string]Dbp
 }
 type SkuState struct {
-	sem *semaphore.Weighted // semaphore.NewWeighted(int64(10))
+	waiting []Promise
 }
 
 // not used currently
@@ -188,12 +186,19 @@ func NewDbDeli(home string) (*DbDeli, error) {
 			"mssql": NewMsSql(v.Db["mssql"]),
 		},
 	}
-	for k, x := range v.Sku {
+	for k := range v.Sku {
 		r.Sku[k] = &SkuState{
-			sem: semaphore.NewWeighted(int64(x.Limit)),
+			waiting: []Promise{},
 		}
 	}
 	return r, nil
+}
+
+type Promise struct {
+	peer *CheckoutClient
+	tag  int64
+	sku  string
+	desc string
 }
 
 // uses datagrove basic web app.
@@ -206,10 +211,51 @@ type CheckoutClient struct {
 	Browser web.Peer
 }
 
+// not used, we  don't call the client.
+func (*CheckoutClient) Reply(tag int64, result any, more []byte, err error) {
+	panic("unimplemented")
+}
+
 var _ web.Peer = (*CheckoutClient)(nil)
 
-// Rpc implements Peer
-func (s *CheckoutClient) Rpc(method string, params []byte, data []byte) (any, []byte, error) {
+func (s *CheckoutClient) publish() {
+	b, _ := json.Marshal(&s.Deli.State)
+	s.Server.Publish("update", b, nil)
+}
+func (s *CheckoutClient) reserve(sku, desc string, tag int64) bool {
+	cf, ok := s.Deli.State.Sku[sku]
+	if !ok {
+		s.Browser.Reply(tag, nil, nil, fmt.Errorf("bad sku %s", sku))
+		return true
+	}
+	for i := 0; i < cf.Limit; i++ {
+		leaseKey := fmt.Sprintf("%s~%d", sku, i)
+		if _, ok := s.Deli.State.Reservation[leaseKey]; !ok {
+			s.Deli.State.Reservation[leaseKey] = Reservation{
+				Sku:         sku,
+				Ticket:      i,
+				Description: desc,
+			}
+			// recover the snapshot
+			db := fmt.Sprintf("%s_%d", sku, i)
+			driver := s.Deli.Drivers[cf.Db]
+			e := driver.Restore(db)
+			if e != nil {
+				log.Fatal(e)
+			}
+			s.Browser.Reply(tag, i, nil, nil)
+			s.publish()
+			return true
+		}
+	}
+	return false // suspend
+}
+
+// when we block on the semaphore we can't hold the global locks.
+// so return nil or a semaphore. if a semaphore, wait on it, then retry the reservation?
+// if we return a bool to mean bl
+func (s *CheckoutClient) Rpc(method string, params []byte, data []byte, tag int64) {
+	//withlock := func() *semaphore.Weighted {
 	s.Deli.Mu.Lock()
 	defer s.Deli.Mu.Unlock()
 
@@ -219,52 +265,35 @@ func (s *CheckoutClient) Rpc(method string, params []byte, data []byte) (any, []
 		Ticket      int
 	}
 	json.Unmarshal(params, &v)
-	var err error
-	result := -1
 
-	// do we want release all to be all databases? what is the use case
-	release := func(sku string, ticket int) {
-		leaseKey := fmt.Sprintf("%s~%d", v.Sku, v.Ticket)
-		delete(s.Deli.State.Reservation, leaseKey)
-		if cg, ok := s.Deli.Sku[sku]; ok {
-			cg.sem.Release(1)
-		}
-	}
-	reserve := func(sku string, desc string) int {
-		cf, ok := s.Deli.State.Sku[sku]
-		if !ok {
-			return -1
-		}
-		cg := s.Deli.Sku[sku]
-		ctx := context.Background()
-		cg.sem.Acquire(ctx, 1)
-		for i := 0; i < cf.Limit; i++ {
-			leaseKey := fmt.Sprintf("%s~%d", v.Sku, i)
-			if _, ok := s.Deli.State.Reservation[leaseKey]; !ok {
-				s.Deli.State.Reservation[leaseKey] = Reservation{
-					Sku:         sku,
-					Ticket:      i,
-					Description: desc,
-				}
-				return i
-			}
-		}
-		return -1
-	}
+	// return false to suspend
+
 	switch method {
 	case "update":
 		// nothing, just fall through to publish
 	case "reserve":
-		result = reserve(v.Sku, v.Description)
-	case "release":
-		release(v.Sku, v.Ticket)
-	case "releaseAll":
-		for _, x := range s.Deli.State.Reservation {
-			release(x.Sku, x.Ticket)
+		if !s.reserve(v.Sku, v.Description, tag) {
+			// no available database, push a promise.
+			cg := s.Deli.Sku[v.Sku]
+			cg.waiting = append(cg.waiting, Promise{
+				peer: s,
+				tag:  tag,
+				sku:  v.Sku,
+				desc: v.Description,
+			})
 		}
+	case "release":
+		leaseKey := fmt.Sprintf("%s~%d", v.Sku, v.Ticket)
+		if _, ok := s.Deli.State.Reservation[leaseKey]; ok {
+			delete(s.Deli.State.Reservation, leaseKey)
+			cg := s.Deli.Sku[v.Sku]
+			if len(cg.waiting) > 0 {
+				pr := cg.waiting[len(cg.waiting)-1]
+				cg.waiting = cg.waiting[0 : len(cg.waiting)-1]
+				pr.peer.reserve(pr.sku, pr.desc, pr.tag)
+			}
+		}
+		s.publish()
 	}
 
-	b, _ := json.Marshal(&s.Deli.State)
-	s.Server.Publish("update", b, nil)
-	return &result, nil, err
 }
