@@ -77,9 +77,9 @@ public class DbdeliClient
     }
     static public async Task<DbdeliClient> connect(Uri url)
     {
-        var t = new CancellationToken();
+
         var cl = new ClientWebSocket();
-        await cl.ConnectAsync(url, t);
+        await cl.ConnectAsync(url, CancellationToken.None);
         return new DbdeliClient(cl);
     }
     public async ValueTask send(string message, Int64 id, dynamic json)
