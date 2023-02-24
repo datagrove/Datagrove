@@ -2,7 +2,6 @@
     "sku": {
         "v10": {
             "limit": 3,
-            "backup": "wwi.bak",
             "db": "mssql"
         }
     },

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -44,6 +45,30 @@ func build() *cobra.Command {
 				log.Fatal(e)
 			}
 			app.Build()
+		},
+	}
+	return r
+}
+func (s *DbDeli) Restore(sku string, tag int) error {
+	cf, ok := s.State.Sku[sku]
+	if !ok || tag >= cf.Limit {
+		return fmt.Errorf("bad sku %s,%d", sku, tag)
+	}
+	db := fmt.Sprintf("%s_%d", sku, tag)
+	driver := s.Drivers[cf.Db]
+	return driver.Restore(db)
+}
+func restore() *cobra.Command {
+	r := &cobra.Command{
+		Use: "restore package sku tag",
+		Run: func(cmd *cobra.Command, args []string) {
+
+			app, e := NewDbDeli(args[0])
+			if e != nil {
+				log.Fatal(e)
+			}
+			i, _ := strconv.Atoi(args[2])
+			app.Restore(args[1], i)
 		},
 	}
 	return r

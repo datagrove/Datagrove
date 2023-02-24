@@ -52,6 +52,7 @@ func (c *DbpMssql) Query(d string) error {
 	return err
 }
 func (c *DbpMssql) Exec1(d string) error {
+	log.Printf("Exec: %s", d)
 	db, e := c.Connect()
 	if e != nil {
 		return e
@@ -110,6 +111,7 @@ func (c *DbpMssql) DescribeBackup(f string) ([]LogicalFile, error) {
 
 // Create implements Dbp
 func (c *DbpMssql) Create(backup string, db string, filedir string) error {
+	log.Printf("Create: %s,%s,%s", backup, db, filedir)
 	lf, e := c.DescribeBackup(backup)
 	if e != nil {
 		return e
@@ -167,6 +169,7 @@ func NewMsSql(d *Driver) *DbpMssql {
 
 func (d *DbpMssql) Connect() (*sql.DB, error) {
 	connString := fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d", d.Server, d.User, d.Password, d.Port)
+	log.Printf("Connect: %s", connString)
 	var err error
 	if d.db != nil {
 		return d.db, nil

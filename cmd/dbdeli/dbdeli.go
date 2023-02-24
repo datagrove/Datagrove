@@ -24,21 +24,6 @@ var (
 	res embed.FS
 )
 
-func main() {
-	godotenv.Load()
-	var rootCmd = &cobra.Command{
-		Use: "dbdeli [sub]",
-	}
-
-	rootCmd.AddCommand(start())
-	rootCmd.AddCommand(build())
-
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
-
 // load the configuration from the opt.home, watch and reconfigure if the file changes.
 // the web server can separately broadcast these out if configured to.
 
@@ -222,6 +207,17 @@ func (s *CheckoutClient) publish() {
 	b, _ := json.Marshal(&s.Deli.State)
 	s.Server.Publish("update", b, nil)
 }
+
+func (s *DbDeli) reserve(sku, desc string, tag int) error {
+	cf, ok := s.State.Sku[sku]
+	if !ok || tag >= cf.Limit {
+		return fmt.Errorf("bad sku %s,%d", sku, tag)
+	}
+	db := fmt.Sprintf("%s_%d", sku, tag)
+	driver := s.Drivers[cf.Db]
+	return driver.Restore(db)
+}
+
 func (s *CheckoutClient) reserve(sku, desc string, tag int64) bool {
 	cf, ok := s.Deli.State.Sku[sku]
 	if !ok {
@@ -296,4 +292,20 @@ func (s *CheckoutClient) Rpc(method string, params []byte, data []byte, tag int6
 		s.publish()
 	}
 
+}
+
+func main() {
+	godotenv.Load()
+	var rootCmd = &cobra.Command{
+		Use: "dbdeli [sub]",
+	}
+
+	rootCmd.AddCommand(start())
+	rootCmd.AddCommand(build())
+	rootCmd.AddCommand(restore())
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
