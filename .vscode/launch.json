@@ -9,15 +9,15 @@
             "projectName": "examples"
         },
         {
-            "name": "pepin",
+            "name": "dbdeli",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/dotnet/src/Testing.Pepin/bin/Debug/net7.0/Testing.Pepin.dll",
+            "program": "${workspaceFolder}/dotnet/dbdeli/bin/Debug/net7.0/dbdeli.dll",
             "args": [
                 "build"
             ],
-            "cwd": "${workspaceFolder}/dotnet/src/Testing.Sample",
+            "cwd": "${workspaceFolder}/dotnet/Testing.Tests.Dbdeli",
             "console": "internalConsole",
             "stopAtEntry": false
         },

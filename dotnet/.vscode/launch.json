@@ -2,6 +2,19 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "dbdeli",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/dbdeli/bin/Debug/net7.0/dbdeli.dll",
+            "args": [
+                "build"
+            ],
+            "cwd": "${workspaceFolder}/dbdeli",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
             // Use IntelliSense to find out which attributes exist for C# debugging
             // Use hover for the description of the existing attributes
             // For further information visit https://github.com/OmniSharp/omnisharp-vscode/blob/master/debugger-launchjson.md
@@ -11,7 +24,9 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/src/Testing.Pepin/bin/Debug/net7.0/Testing.Pepin.dll",
-            "args": ["build"],
+            "args": [
+                "build"
+            ],
             "cwd": "${workspaceFolder}/src/Testing.Sample",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",

@@ -9,11 +9,15 @@ public class Rpc
 {
     public string? method { get; set; }
     public Int64? id { get; set; }
-    public JsonElement? @params { get; set; }
+    public dynamic? @params { get; set; }
 
     public JsonElement? result { get; set; }
     public RpcError? error { get; set; }
 
+    public Rpc()
+    {
+
+    }
     public Rpc(string message, Int64 id, dynamic @params)
     {
         this.method = message;
@@ -64,7 +68,8 @@ public class Lease : IAsyncDisposable
     }
     public async ValueTask DisposeAsync()
     {
-        await client.send("release", 42, JsonSerializer.Serialize(tag));
+        await client.send("release", 42, tag);
+        await client.client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
     }
 }
 
@@ -85,11 +90,10 @@ public class DbdeliClient
     public async ValueTask send(string message, Int64 id, dynamic json)
     {
         var b = JsonSerializer.SerializeToUtf8Bytes(new Rpc(message, id, json));
+        await client.SendAsync(b, WebSocketMessageType.Text, true, CancellationToken.None);
     }
     public async ValueTask<Rpc> recv()
     {
-        // result and params are
-
         ArraySegment<Byte> buffer = new ArraySegment<byte>(new Byte[8192]);
 
         WebSocketReceiveResult? result = null;
@@ -112,27 +116,19 @@ public class DbdeliClient
     }
 
 
-    public async Task<Lease> reserve(string sku, string description)
+    public async ValueTask<Lease> reserve(string sku, string description)
     {
         await send("reserve", 42, new Reserve(sku, description));
         while (true)
         {
             var r = await recv();
-            if (r.method == "" && r.id == 42)
+            if (r.method == null && r.id == 42)
             {
                 var json = r.result?.GetRawText();
                 var ln = JsonSerializer.Deserialize<Int64>(json ?? "0");
                 return new Lease(this, new Release(sku, ln));
             }
         }
-    }
-
-    public static T fromBytes<T>(byte[] b)
-    {
-        var readOnlySpan = new ReadOnlySpan<byte>(b);
-        var rd = JsonSerializer.Deserialize<T>(readOnlySpan);
-        if (rd == null) throw new Exception("bad message");
-        return rd;
     }
 
 }

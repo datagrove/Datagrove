@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/datagrove/datagrove/pkg/web"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	//"github.com/xeipuuv/gojsonschema"
@@ -53,12 +52,12 @@ func start() *cobra.Command {
 					Server:  m,
 					Browser: browser,
 				}
-				app.Mu.Lock()
-				defer app.Mu.Unlock()
-				b, _ := json.Marshal(&app.State)
+
 				// a nil browser is http guest
 				if browser != nil {
-					spew.Dump(b)
+					app.Mu.Lock()
+					defer app.Mu.Unlock()
+					b, _ := json.Marshal(&app.State)
 					browser.Rpc("update", b, nil, 0)
 				}
 				return r, nil
@@ -268,6 +267,7 @@ func (s *CheckoutClient) Rpc(method string, params []byte, data []byte, tag int6
 	case "update":
 		// nothing, just fall through to publish
 	case "reserve":
+		log.Printf("reserve %s, %d", v.Sku, tag)
 		if !s.reserve(v.Sku, v.Description, tag) {
 			// no available database, push a promise.
 			cg := s.Deli.Sku[v.Sku]
@@ -281,6 +281,7 @@ func (s *CheckoutClient) Rpc(method string, params []byte, data []byte, tag int6
 	case "release":
 		leaseKey := fmt.Sprintf("%s~%d", v.Sku, v.Ticket)
 		if _, ok := s.Deli.State.Reservation[leaseKey]; ok {
+			log.Printf("release %s", leaseKey)
 			delete(s.Deli.State.Reservation, leaseKey)
 			cg := s.Deli.Sku[v.Sku]
 			if len(cg.waiting) > 0 {
