@@ -137,7 +137,7 @@ func (d *DbDeli) Configure(m []byte) error {
 func NewDbDeli(home string) (*DbDeli, error) {
 	// read the current shared state.
 	var v SharedState
-	b, e := os.ReadFile(path.Join(home, "shared.json"))
+	b, e := os.ReadFile(path.Join(home, "dbdeli.json"))
 	if e != nil {
 		return nil, e
 	}
