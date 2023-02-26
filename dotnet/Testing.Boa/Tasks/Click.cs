@@ -11,12 +11,15 @@ namespace Datagrove.Testing.Boa
     {
         #region Constructors
 
+        bool force = true;
         /// <summary>
         /// Private constructor.
         /// (Use static builder methods to construct.)
         /// </summary>
         /// <param name="locator">The target Web element's locator.</param>
-        private Click(IWebLocator locator) : base(locator) { }
+        private Click(IWebLocator locator,bool force=true) : base(locator) {
+            this.force = force;
+         }
 
         #endregion
         
@@ -27,7 +30,7 @@ namespace Datagrove.Testing.Boa
         /// </summary>
         /// <param name="locator">The target Web element's locator.</param>
         /// <returns></returns>
-        public static Click On(IWebLocator locator) => new Click(locator);
+        public static Click On(IWebLocator locator,bool force=true) => new Click(locator,force);
 
         #endregion
 
@@ -43,7 +46,8 @@ namespace Datagrove.Testing.Boa
         {
             var s = Locator.Query.Criteria;
             var d = (PlaywrightDriver)driver;
-            d.Click(s);
+            // by default forcing, or won't be compatible. but sometimes we want stronger playwright conditions.
+            d.Click(s,this.force);
             // actor.WaitsUntil(Appearance.Of(Locator), IsEqualTo.True());
             // new Actions(driver).MoveToElement(driver.FindElement(Locator.Query)).Click().Perform();
         }
