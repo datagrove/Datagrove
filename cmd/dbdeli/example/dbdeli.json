@@ -10,7 +10,8 @@
             "server": "localhost",
             "port": 1433,
             "user": "sa",
-            "password": "Winter2023_"
+            "password": "Winter2023_",
+            "files": "/var/opt/mssql"
         }
     }
 }

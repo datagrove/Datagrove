@@ -29,16 +29,16 @@ func Test_sql(t *testing.T) {
 
 const COUNT = 3
 
-func Test_create(t *testing.T) {
-	s := NewMsSql(nil)
-	defer s.Close()
-	for x := 0; x < COUNT; x++ {
-		var df = "d:\\db"
-		db := fmt.Sprintf("iMISMain10_%d", x)
-		s.Create(df+"\\v10.bak", db, df)
-		s.Restore(db)
-	}
-}
+// func Test_create(t *testing.T) {
+// 	s := NewMsSql(nil)
+// 	defer s.Close()
+// 	for x := 0; x < COUNT; x++ {
+// 		var df = "d:\\db"
+// 		db := fmt.Sprintf("iMISMain10_%d", x)
+// 		s.Create(df+"\\v10.bak", db, df)
+// 		s.Restore(db)
+// 	}
+// }
 
 func Test_copy(t *testing.T) {
 	var dir = "C:/VSTS/master/deployment/v10/TenantData/Tenants/"
@@ -50,7 +50,7 @@ func Test_copy(t *testing.T) {
 		}
 	}
 }
-func ordie(e error) {
+func or_die(e error) {
 	if e != nil {
 		panic(e)
 	}
@@ -59,6 +59,6 @@ func ordie(e error) {
 func Test_disconnect(t *testing.T) {
 	s := NewMsSql(nil)
 
-	ordie(s.Disconnect("iMISMain10_0"))
-	ordie(s.Restore("iMISMain10_0"))
+	or_die(s.Disconnect("iMISMain10_0"))
+	or_die(s.Restore("iMISMain10_0"))
 }

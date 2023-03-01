@@ -19,3 +19,10 @@ func Test_restore(t *testing.T) {
 	os.Args = []string{"", "restore", "example", "v10", "0"}
 	main()
 }
+
+// normally we will create a golden copy with some program, or we might restore it.
+// this will test our ability to load a backup as a utility
+func Test_restore_golden(t *testing.T) {
+	os.Args = []string{"", "load", "example", "/var/opt/mssql/backup/v10.bak", "v10"}
+	main()
+}

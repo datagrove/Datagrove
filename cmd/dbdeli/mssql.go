@@ -5,13 +5,19 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"path"
 
 	_ "github.com/microsoft/go-mssqldb"
 )
 
 type Dbp interface {
 	io.Closer
-	Create(backup string, db string, filedir string) error
+
+	BackupToDatabase(backupPath, database string) error
+
+	// backs up the golden database, then restores and snapshots.
+	Backup(db string) error
+	Create(db string) error
 	Restore(db string) error
 }
 type Driver struct {
@@ -19,6 +25,7 @@ type Driver struct {
 	User     string `json:"user,omitempty"`
 	Password string `json:"password,omitempty"`
 	Port     int    `json:"port,omitempty"`
+	Files    string `json:"files,omitempty"`
 }
 type DbpBase struct {
 }
@@ -27,6 +34,8 @@ type DbpMssql struct {
 	db *sql.DB
 }
 
+var _ Dbp = (*DbpMssql)(nil)
+
 // Close implements Dbp
 func (s *DbpMssql) Close() error {
 	if s.db == nil {
@@ -34,8 +43,6 @@ func (s *DbpMssql) Close() error {
 	}
 	return s.db.Close()
 }
-
-var _ Dbp = (*DbpMssql)(nil)
 
 func (c *DbpMssql) Query(d string) error {
 	db, e := c.Connect()
@@ -109,17 +116,8 @@ func (c *DbpMssql) DescribeBackup(f string) ([]LogicalFile, error) {
 	return x, err
 }
 
-// Create implements Dbp
-func (c *DbpMssql) Create(backup string, db string, filedir string) error {
-	log.Printf("Create: %s,%s,%s", backup, db, filedir)
-	lf, e := c.DescribeBackup(backup)
-	if e != nil {
-		return e
-	}
-
-	c.Drop(db + "_ss")
+func (c *DbpMssql) BackupToDatabase2(backup, db string, lf []LogicalFile) error {
 	c.Drop(db)
-
 	ext := map[string]string{
 		"S": "",
 		"D": ".mdf",
@@ -127,16 +125,38 @@ func (c *DbpMssql) Create(backup string, db string, filedir string) error {
 	}
 	s := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = N'%s' WITH", db, backup)
 	for _, o := range lf {
-		s += fmt.Sprintf(" Move N'%s' to N'%s/%s_%s%s',", o.name, filedir, db, o.name, ext[o.kind])
+		s += fmt.Sprintf(" Move N'%s' to N'%s/%s_%s%s',", o.name, c.Files, db, o.name, ext[o.kind])
 	}
-
 	s += " STATS=5"
-	//
-	// c.Exec1(fmt.Sprintf(WITH  FILE = 1,  MOVE N'iMISMain15' TO N'%s',  MOVE N'iMISMain15_log' TO N'%s',  NOUNLOAD,  STATS = 5", db, backup, dbfile, logfile))
-	c.Exec1(s)
-	// Snapshot implements Dbp
+	return c.Exec1(s)
+}
 
-	s = fmt.Sprintf("CREATE DATABASE %s_ss ON ", db)
+// used (optionally) to load a gold database. Alternately you could create the gold copy with code, but this is option for convenienc.
+func (c *DbpMssql) BackupToDatabase(backup, db string) error {
+	// order is important here, we need to drop the snapshot before the database.
+	lf, e := c.DescribeBackup(backup)
+	if e != nil {
+		return e
+	}
+	return c.BackupToDatabase2(backup, db, lf)
+}
+
+// Create implements Dbp
+func (c *DbpMssql) Create(db string) error {
+	filedir := c.Files
+	backup := path.Join(c.Driver.Files, db)
+
+	log.Printf("Create: %s,%s,%s", backup, db, filedir)
+	lf, e := c.DescribeBackup(backup)
+	if e != nil {
+		return e
+	}
+	c.BackupToDatabase2(backup, db, lf)
+	// order is important here, we need to drop the snapshot before the database.
+	c.Drop(db + "_ss")
+
+	// Snapshot implements Dbp
+	s := fmt.Sprintf("CREATE DATABASE %s_ss ON ", db)
 	for _, o := range lf {
 		if o.kind == "D" {
 			s += fmt.Sprintf("(NAME = %s,  FILENAME = '%s/%s_%s.ss'),", o.name, filedir, db, o.name)
@@ -152,8 +172,6 @@ func (c *DbpMssql) Create(backup string, db string, filedir string) error {
 func (c *DbpMssql) Drop(db string) error {
 	return c.Exec1(fmt.Sprintf("drop database if exists %s", db))
 }
-
-var _ Dbp = (*DbpMssql)(nil)
 
 func NewMsSql(d *Driver) *DbpMssql {
 	if d == nil {

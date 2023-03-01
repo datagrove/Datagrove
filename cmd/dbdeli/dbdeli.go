@@ -19,7 +19,7 @@ import (
 // https://github.com/santhosh-tekuri/jsonschema
 
 var (
-	//go:embed dist
+	//go:embed distv
 	res embed.FS
 )
 
@@ -105,8 +105,7 @@ type Reservation struct {
 type ConfigureSku struct {
 	Limit    int    `json:"limit,omitempty"`
 	Database string `json:"database,omitempty"`
-	Backup   string `json:"backup,omitempty"`
-	Db       string `json:"db,omitempty"`
+	Dbms     string `json:"db,omitempty"`
 }
 
 // server state.
@@ -213,7 +212,7 @@ func (s *DbDeli) reserve(sku, desc string, tag int) error {
 		return fmt.Errorf("bad sku %s,%d", sku, tag)
 	}
 	db := fmt.Sprintf("%s_%d", sku, tag)
-	driver := s.Drivers[cf.Db]
+	driver := s.Drivers[cf.Dbms]
 	return driver.Restore(db)
 }
 
@@ -233,7 +232,7 @@ func (s *CheckoutClient) reserve(sku, desc string, tag int64) bool {
 			}
 			// recover the snapshot
 			db := fmt.Sprintf("%s_%d", sku, i)
-			driver := s.Deli.Drivers[cf.Db]
+			driver := s.Deli.Drivers[cf.Dbms]
 			e := driver.Restore(db)
 			if e != nil {
 				log.Fatal(e)
@@ -304,6 +303,7 @@ func main() {
 	rootCmd.AddCommand(start())
 	rootCmd.AddCommand(build())
 	rootCmd.AddCommand(restore())
+	rootCmd.AddCommand(load())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
