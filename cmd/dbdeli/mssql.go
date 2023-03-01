@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"path"
 
 	_ "github.com/microsoft/go-mssqldb"
@@ -17,8 +18,9 @@ type Dbp interface {
 
 	// backs up the golden database, then restores and snapshots.
 	Backup(db string) error
-	Create(db string) error
+	Create(db string, begin, end int) error
 	Restore(db string) error
+	Drop2(db string) error
 }
 type Driver struct {
 	Server   string `json:"server,omitempty"`
@@ -74,7 +76,9 @@ func (c *DbpMssql) Exec1(d string) error {
 }
 
 func (c *DbpMssql) Backup(db string) error {
-	cmd := fmt.Sprintf("BACKUP DATABASE %s TO DISK = '/var/opt/mssql/backup/%s.bak'", db, db)
+	f := path.Join(c.Files, db+".bak")
+	os.Remove(f)
+	cmd := fmt.Sprintf("BACKUP DATABASE %s TO DISK = '%s'", db, f)
 	return c.Exec1(cmd)
 }
 
@@ -142,30 +146,44 @@ func (c *DbpMssql) BackupToDatabase(backup, db string) error {
 }
 
 // Create implements Dbp
-func (c *DbpMssql) Create(db string) error {
-	filedir := c.Files
-	backup := path.Join(c.Driver.Files, db)
+func (c *DbpMssql) Drop2(db string) error {
+	c.Drop(db + "_ss")
+	return c.Drop(db)
+}
 
-	log.Printf("Create: %s,%s,%s", backup, db, filedir)
+// Create implements Dbp
+func (c *DbpMssql) Create(name string, begin, end int) error {
+	filedir := c.Files
+	backup := path.Join(c.Driver.Files, name+".bak")
 	lf, e := c.DescribeBackup(backup)
 	if e != nil {
 		return e
 	}
-	c.BackupToDatabase2(backup, db, lf)
-	// order is important here, we need to drop the snapshot before the database.
-	c.Drop(db + "_ss")
 
-	// Snapshot implements Dbp
-	s := fmt.Sprintf("CREATE DATABASE %s_ss ON ", db)
-	for _, o := range lf {
-		if o.kind == "D" {
-			s += fmt.Sprintf("(NAME = %s,  FILENAME = '%s/%s_%s.ss'),", o.name, filedir, db, o.name)
+	for tag := begin; tag < end; tag++ {
+		db := fmt.Sprintf("%s_%d", name, tag)
+		// order is important here, we need to drop the snapshot before the database.
+		c.Drop(db + "_ss")
+		e := c.BackupToDatabase2(backup, db, lf)
+		if e != nil {
+			return e
+		}
+
+		// Snapshot implements Dbpa
+		s := fmt.Sprintf("CREATE DATABASE %s_ss ON ", db)
+		for _, o := range lf {
+			if o.kind == "D" {
+				s += fmt.Sprintf("(NAME = %s,  FILENAME = '%s/%s_%s.ss'),", o.name, filedir, db, o.name)
+			}
+		}
+		s = s[0 : len(s)-1]
+		s += fmt.Sprintf(" AS SNAPSHOT OF %s", db)
+		e = c.Exec1(s)
+		if e != nil {
+			return e
 		}
 	}
-	s = s[0 : len(s)-1]
-	s += fmt.Sprintf(" AS SNAPSHOT OF %s", db)
-	return c.Exec1(s)
-
+	return nil
 }
 
 // Drop implements Dbp

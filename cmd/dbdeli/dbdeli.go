@@ -304,6 +304,7 @@ func main() {
 	rootCmd.AddCommand(build())
 	rootCmd.AddCommand(restore())
 	rootCmd.AddCommand(load())
+	rootCmd.AddCommand(drop())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

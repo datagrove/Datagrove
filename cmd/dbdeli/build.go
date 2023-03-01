@@ -15,10 +15,25 @@ import (
 // 	db := fmt.Sprintf("%s_%d", name, i)
 // }
 
-func (d *DbDeli) Build() {
-	// we need to optionally back up the golden copies here
-	// we need to support more than one
+func (d *DbDeli) Drop() {
+	// this creates a backup of the gold copy
+	for name, x := range d.State.Sku {
+		drv, ok := d.Drivers[x.Dbms]
+		if !ok {
+			log.Fatalf("Unknown dbms %s", x.Dbms)
+		}
+		for i := 0; i < x.Limit; i++ {
+			db := fmt.Sprintf("%s_%d", name, i)
+			e := drv.Drop2(db) //ßbackupDir + name+".bak", db, "/var/opt/mssql")
+			if e != nil {
+				log.Print(e)
+			}
+		}
+	}
+}
 
+func (d *DbDeli) Build() {
+	// this creates a backup of the gold copy
 	for name, x := range d.State.Sku {
 		drv, ok := d.Drivers[x.Dbms]
 		if !ok {
@@ -36,13 +51,11 @@ func (d *DbDeli) Build() {
 			log.Fatalf("Unknown dbms %s", x.Dbms)
 		}
 
-		for i := 0; i < x.Limit; i++ {
-			db := fmt.Sprintf("%s_%d", name, i)
-			e := drv.Create(db)
-			if e != nil {
-				log.Fatal(e)
-			}
+		e := drv.Create(name, 0, x.Limit)
+		if e != nil {
+			log.Fatal(e)
 		}
+
 	}
 }
 
@@ -117,6 +130,22 @@ func load() *cobra.Command {
 			}
 			drv.BackupToDatabase(backupfile, sku)
 
+		},
+	}
+	return r
+}
+
+// this is just a utility, not required. load some backup to the the "golden" copy.
+func drop() *cobra.Command {
+	r := &cobra.Command{
+		Use: "drop package",
+		Run: func(cmd *cobra.Command, args []string) {
+
+			app, e := NewDbDeli(args[0])
+			if e != nil {
+				log.Fatal(e)
+			}
+			app.Drop()
 		},
 	}
 	return r

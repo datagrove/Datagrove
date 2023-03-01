@@ -26,3 +26,8 @@ func Test_restore_golden(t *testing.T) {
 	os.Args = []string{"", "load", "example", "/var/opt/mssql/backup/v10.bak", "v10"}
 	main()
 }
+
+func Test_drop(t *testing.T) {
+	os.Args = []string{"", "drop", "example"}
+	main()
+}
