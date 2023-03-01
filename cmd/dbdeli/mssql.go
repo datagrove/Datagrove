@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	_ "github.com/microsoft/go-mssqldb"
 )
@@ -28,6 +29,7 @@ type Driver struct {
 	Password string `json:"password,omitempty"`
 	Port     int    `json:"port,omitempty"`
 	Files    string `json:"files,omitempty"`
+	Windows  bool   `json:"windows,omitempty"`
 }
 type DbpBase struct {
 }
@@ -78,6 +80,7 @@ func (c *DbpMssql) Exec1(d string) error {
 func (c *DbpMssql) Backup(db string) error {
 	f := path.Join(c.Files, db+".bak")
 	os.Remove(f)
+	f = c.Join("", f)
 	cmd := fmt.Sprintf("BACKUP DATABASE %s TO DISK = '%s'", db, f)
 	return c.Exec1(cmd)
 }
@@ -88,6 +91,7 @@ type LogicalFile struct {
 }
 
 func (c *DbpMssql) DescribeBackup(f string) ([]LogicalFile, error) {
+	f = c.Join("", f)
 	cmd := fmt.Sprintf("RESTORE FILELISTONLY FROM DISK = '%s'", f)
 	db, e := c.Connect()
 	if e != nil {
@@ -127,9 +131,11 @@ func (c *DbpMssql) BackupToDatabase2(backup, db string, lf []LogicalFile) error 
 		"D": ".mdf",
 		"L": ".log",
 	}
-	s := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = N'%s' WITH", db, backup)
+
+	s := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = N'%s' WITH", db, c.Join("", backup))
 	for _, o := range lf {
-		s += fmt.Sprintf(" Move N'%s' to N'%s/%s_%s%s',", o.name, c.Files, db, o.name, ext[o.kind])
+		pf := c.Join(c.Files, db+"_"+o.name+ext[o.kind])
+		s += fmt.Sprintf(" Move N'%s' to N'%s',", o.name, pf) //  c.Files, db, o.name, ext[o.kind]
 	}
 	s += " STATS=5"
 	return c.Exec1(s)
@@ -149,6 +155,15 @@ func (c *DbpMssql) BackupToDatabase(backup, db string) error {
 func (c *DbpMssql) Drop2(db string) error {
 	c.Drop(db + "_ss")
 	return c.Drop(db)
+}
+
+func (c *DbpMssql) Join(dir, file string) string {
+	s := path.Join(dir, file)
+	if c.Windows {
+		return strings.ReplaceAll(s, "/", "\\")
+	} else {
+		return s
+	}
 }
 
 // Create implements Dbp
@@ -173,7 +188,8 @@ func (c *DbpMssql) Create(name string, begin, end int) error {
 		s := fmt.Sprintf("CREATE DATABASE %s_ss ON ", db)
 		for _, o := range lf {
 			if o.kind == "D" {
-				s += fmt.Sprintf("(NAME = %s,  FILENAME = '%s/%s_%s.ss'),", o.name, filedir, db, o.name)
+				pf := c.Join(filedir, db+"_"+o.name+".ss")
+				s += fmt.Sprintf("(NAME = %s,  FILENAME = '%s'),", o.name, pf)
 			}
 		}
 		s = s[0 : len(s)-1]
@@ -230,7 +246,15 @@ func (c *DbpMssql) Disconnect(db string) error {
 
 func (c *DbpMssql) Restore(db string) error {
 	//c.Disconnect(db)
-	return c.Exec1(fmt.Sprintf("RESTORE DATABASE %s from DATABASE_SNAPSHOT = '%s_ss'", db, db))
+	e := c.Exec1(fmt.Sprintf("ALTER DATABASE [%s] SET SINGLE_USER WITH ROLLBACK IMMEDIATE", db))
+	if e != nil {
+		return e
+	}
+	e = c.Exec1(fmt.Sprintf("RESTORE DATABASE %s from DATABASE_SNAPSHOT = '%s_ss'", db, db))
+	if e != nil {
+		return e
+	}
+	return c.Exec1(fmt.Sprintf("ALTER DATABASE [%s] SET MULTI_USER WITH ROLLBACK IMMEDIATE", db))
 }
 
 /*

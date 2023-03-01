@@ -19,7 +19,7 @@ import (
 // https://github.com/santhosh-tekuri/jsonschema
 
 var (
-	//go:embed distv
+	//go:embed dist
 	res embed.FS
 )
 
@@ -216,13 +216,18 @@ func (s *DbDeli) reserve(sku, desc string, tag int) error {
 	return driver.Restore(db)
 }
 
+var nextReserve = 0
+
 func (s *CheckoutClient) reserve(sku, desc string, tag int64) bool {
 	cf, ok := s.Deli.State.Sku[sku]
 	if !ok {
 		s.Browser.Reply(tag, nil, nil, fmt.Errorf("bad sku %s", sku))
 		return true
 	}
-	for i := 0; i < cf.Limit; i++ {
+	// we should start where we left off
+	for j := 0; j < cf.Limit; j++ {
+		i := (nextReserve + cf.Limit) % cf.Limit
+		nextReserve++
 		leaseKey := fmt.Sprintf("%s~%d", sku, i)
 		if _, ok := s.Deli.State.Reservation[leaseKey]; !ok {
 			s.Deli.State.Reservation[leaseKey] = Reservation{
@@ -233,9 +238,13 @@ func (s *CheckoutClient) reserve(sku, desc string, tag int64) bool {
 			// recover the snapshot
 			db := fmt.Sprintf("%s_%d", sku, i)
 			driver := s.Deli.Drivers[cf.Dbms]
-			e := driver.Restore(db)
-			if e != nil {
-				log.Fatal(e)
+			for {
+				e := driver.Restore(db)
+				if e != nil {
+					log.Printf("failed %s", e)
+				} else {
+					break
+				}
 			}
 			s.Browser.Reply(tag, i, nil, nil)
 			s.publish()

@@ -9,7 +9,14 @@ func Test_build(t *testing.T) {
 	os.Args = []string{"one", "build", "example"}
 	main()
 }
-
+func Test_build2(t *testing.T) {
+	os.Args = []string{"one", "build", "D:/dev/asi/asi1/packages/setup/dbdeli"}
+	main()
+}
+func Test_start2(t *testing.T) {
+	os.Args = []string{"one", "start", "D:/dev/asi/asi1/packages/setup/dbdeli"}
+	main()
+}
 func Test_start(t *testing.T) {
 	os.Args = []string{"one", "start", "example"}
 	main()
