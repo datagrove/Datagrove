@@ -226,7 +226,7 @@ func (s *CheckoutClient) reserve(sku, desc string, tag int64) bool {
 	}
 	// we should start where we left off
 	for j := 0; j < cf.Limit; j++ {
-		i := (nextReserve + cf.Limit) % cf.Limit
+		i := nextReserve % cf.Limit
 		nextReserve++
 		leaseKey := fmt.Sprintf("%s~%d", sku, i)
 		if _, ok := s.Deli.State.Reservation[leaseKey]; !ok {
