@@ -89,7 +89,9 @@ ISearchContext, IJavaScriptExecutor, ITakesScreenshot, ITargetLocator, IDisposab
             p.playwright = await Playwright.CreateAsync();
             p.browser = await p.options.createBrowser(p.playwright);
             p.context = await p.browser.NewContextAsync(p.options.contextOptions);
-            await p.context.Tracing.StartAsync(p.options.tracingOptions);
+            if (p.options.tracingOptions!=null){
+                await p.context.Tracing.StartAsync(p.options.tracingOptions);
+            }
             p.page = await p.context.NewPageAsync();
         }
         while (!p.quit)
@@ -111,10 +113,12 @@ ISearchContext, IJavaScriptExecutor, ITakesScreenshot, ITargetLocator, IDisposab
 
         if (p.options != null)
         {
-            await p.context.Tracing.StopAsync(new TracingStopOptions
-            {
-                Path = p.options.trace,
-            });
+            if (p.options.tracingOptions!=null) {
+                await p.context.Tracing.StopAsync(new TracingStopOptions
+                {
+                    Path = p.options.trace,
+                });
+            }
             await p.context.DisposeAsync();
             await p.browser.DisposeAsync();
             p.playwright.Dispose();
@@ -256,7 +260,7 @@ ISearchContext, IJavaScriptExecutor, ITakesScreenshot, ITargetLocator, IDisposab
     public T exec<T>(Func<PlaywrightDriver, Task<object>> fn)
     {
         Microsoft.Playwright.PlaywrightException ethrow;
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 100; i++)
         {
             try
             {
@@ -267,7 +271,7 @@ ISearchContext, IJavaScriptExecutor, ITakesScreenshot, ITargetLocator, IDisposab
                 ethrow = e;
                 if (e.Message.Contains("context was destroyed") || e.Message.Contains("attached") || e.Message.Contains("navigating") || e.Message.Contains("detached"))
                 {
-                    Thread.Sleep(100);
+                    Thread.Sleep(1000);
 
                 }
                 else

@@ -21,3 +21,6 @@ At a high level
 1. get unlicensed v10.bak
 2. dbdeli load dbdeli v10.bak  # create the golden copy, license it.
 3. dbdeli build     # this will first create the golden backup, then copy it to N copies.
+
+
+dotnet test --filter "Name~I_navigate_to_all_staff_menu_items_in_RiSE__" --list-tests

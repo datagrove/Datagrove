@@ -1,7 +1,7 @@
-﻿namespace Testing.Dbdeli;
+﻿namespace Datagrove.Testing.Dbdeli;
 using System.Text.Json;
 using System.Net.WebSockets;
-
+using System.Text;
 // a reply is :number:json
 // an error is $:number:json
 
@@ -47,13 +47,12 @@ public class Reserve
 }
 public class Release
 {
-    public Int64 id { get; set; }
     public string sku { get; set; }
-    Int64 tag { get; set; }
+    public Int64 Ticket { get; set; }
     public Release(string sku, Int64 tag)
     {
         this.sku = sku;
-        this.tag = tag;
+        this.Ticket = tag;
     }
 }
 
@@ -69,7 +68,9 @@ public class Lease : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await client.send("release", 42, tag);
+        try {
         await client.client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+        } catch(Exception){}
     }
 }
 
@@ -90,6 +91,7 @@ public class DbdeliClient
     public async ValueTask send(string message, Int64 id, dynamic json)
     {
         var b = JsonSerializer.SerializeToUtf8Bytes(new Rpc(message, id, json));
+        var x = System.Text.Encoding.UTF8.GetString(b);
         await client.SendAsync(b, WebSocketMessageType.Text, true, CancellationToken.None);
     }
     public async ValueTask<Rpc> recv()

@@ -41,11 +41,7 @@ public class PlaywrightOptions
     public APIRequestNewContextOptions apiNew = new();
     public APIRequestContextOptions api = new();
     public APIRequestContextStorageStateOptions apiStorage = new();
-    public TracingStartOptions tracingOptions = new()
-                {
-                    Screenshots = true,
-                    Snapshots = true,
-                };
+    public TracingStartOptions? tracingOptions = null;
 
     public string trace { get; set; } = "";
     public PlaywrightOptions()
