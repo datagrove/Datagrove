@@ -68,6 +68,7 @@ public class Lease : IAsyncDisposable
     }
     public async ValueTask DisposeAsync()
     {
+        Console.Write($"Release {tag}");
         await client.send("release", 42, tag);
         await client.client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
     }
@@ -90,6 +91,7 @@ public class DbdeliClient
     public async ValueTask send(string message, Int64 id, dynamic json)
     {
         var b = JsonSerializer.SerializeToUtf8Bytes(new Rpc(message, id, json));
+        Console.Write(b);
         await client.SendAsync(b, WebSocketMessageType.Text, true, CancellationToken.None);
     }
     public async ValueTask<Rpc> recv()
@@ -126,6 +128,7 @@ public class DbdeliClient
             {
                 var json = r.result?.GetRawText();
                 var ln = JsonSerializer.Deserialize<Int64>(json ?? "0");
+                Console.Write($"lease ({json}) => {ln}");
                 return new Lease(this, new Release(sku, ln));
             }
         }
