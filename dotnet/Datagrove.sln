@@ -22,8 +22,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Testing.MSTest", "Testing.MSTest\Testing.MSTest.csproj", "{702A2D4C-89B2-47E2-8C91-41D40F9A397F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Testing.Dbdeli", "Testing.Dbdeli\Testing.Dbdeli.csproj", "{4A100FF3-CEF6-49AB-9366-A233FA0D2D67}"
-EndProjects
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dbdeli", "dbdeli\dbdeli.csproj", "{D9329710-87EA-42D9-9E04-6FA96ABD60B4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Boa.Constrictor.Screenplay", "Boa.Constrictor.Screenplay\Boa.Constrictor.Screenplay.csproj", "{71AF73C0-5F1F-4C37-B04C-51C20868A43A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -82,5 +82,9 @@ Global
 		{D9329710-87EA-42D9-9E04-6FA96ABD60B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D9329710-87EA-42D9-9E04-6FA96ABD60B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D9329710-87EA-42D9-9E04-6FA96ABD60B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71AF73C0-5F1F-4C37-B04C-51C20868A43A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71AF73C0-5F1F-4C37-B04C-51C20868A43A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71AF73C0-5F1F-4C37-B04C-51C20868A43A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71AF73C0-5F1F-4C37-B04C-51C20868A43A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

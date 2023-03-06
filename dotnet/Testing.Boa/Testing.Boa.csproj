@@ -2,11 +2,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Testing.Selenium\Testing.Selenium.csproj" />
+    <ProjectReference Include="..\Boa.Constrictor.Screenplay\Boa.Constrictor.Screenplay.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Boa.Constrictor" Version="3.0.3" />
-  </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
