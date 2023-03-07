@@ -21,7 +21,7 @@ namespace Boa.Constrictor.Screenplay
         /// Use this if an override timeout value is not provided,
         /// And if the Actor does not have the SetTimeouts Ability.
         /// </summary>
-        public const int DefaultTimeout = 30;
+        public const int DefaultTimeout = 180;
 
         #endregion
 

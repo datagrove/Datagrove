@@ -14,15 +14,12 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <DebugType>embedded</DebugType>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Please read https://github.com/q2ebanking/boa-constrictor/blob/main/Boa.Constrictor.RestSharp/CHANGELOG.md for full release notes.</PackageReleaseNotes>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="../logos/symbol/no-margin/png/logo-symbol-black-120x148.png" Pack="true" PackagePath="$(PackageIcon)" />
-    <None Include="../LICENSE.md" Pack="true" PackagePath="$(PackageLicenseFile)" />
     <None Include="README.md" Pack="true" PackagePath="$(PackageReadmeFile)" />
   </ItemGroup>
 
